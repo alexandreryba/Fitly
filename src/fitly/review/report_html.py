@@ -15,7 +15,7 @@ def _e(v):
     return html.escape(str(v if v is not None else ""))
 
 
-def main(db=None, out=OUT, limit=100):
+def main(db=None, out=OUT, limit=100) -> int:
     db = paths.db_path(db)
     rows = [r for r in build(db) if r.get("quota") != "reserve"][:limit]
     due = due_followups(db_path=db)

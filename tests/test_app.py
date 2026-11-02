@@ -408,14 +408,8 @@ def test_daily_selection_by_family_go_with_one_cv(app_db, monkeypatch):
 
 
 def test_offers_grouped_by_company_and_batches_never_split_a_company():
+    from fitly.ui.offer_rows import by_company, first_batch
 
-    # app.py is a Streamlit script: test its pure helpers through a tiny namespace instead of importing it.
-    src = (ROOT / "src" / "fitly" / "ui" / "app.py").read_text(encoding="utf-8")
-    ns = {}
-    for name in ("by_company", "first_batch"):
-        start = src.index(f"def {name}(")
-        end = src.index("\n\n\ndef ", start)
-        exec(src[start:end], ns)
     rows = [
         {"company": c, "score": s}
         for c, s in [
@@ -431,7 +425,7 @@ def test_offers_grouped_by_company_and_batches_never_split_a_company():
             ("Top", 98),
         ]
     ]
-    ordered = ns["by_company"](rows)
+    ordered = by_company(rows)
     # Top 98 | Stark (95+90)/2=92.5 | Umbrella (90+81.7)/2=85.8 | Solo (96+78)/2=87 | Wayne 80
     assert [r["company"] for r in ordered] == [
         "Top",
@@ -446,6 +440,6 @@ def test_offers_grouped_by_company_and_batches_never_split_a_company():
         "Wayne",
     ]
     assert [r["score"] for r in ordered][:4] == [98, 95, 90, 85]
-    assert [r["company"] for r in ns["first_batch"](ordered, 3)] == ["Top", "Stark", "Stark", "Stark"]
-    assert len(ns["first_batch"](ordered, 1)) == 1 and len(ns["first_batch"](ordered, 2)) == 4
-    assert ns["first_batch"]([], 10) == []
+    assert [r["company"] for r in first_batch(ordered, 3)] == ["Top", "Stark", "Stark", "Stark"]
+    assert len(first_batch(ordered, 1)) == 1 and len(first_batch(ordered, 2)) == 4
+    assert first_batch([], 10) == []

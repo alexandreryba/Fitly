@@ -6,6 +6,7 @@ from __future__ import annotations
 import json
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 from fitly import config, paths
 
@@ -33,7 +34,7 @@ LABELS = {
 }
 
 
-def path_for(db_path=None):
+def path_for(db_path=None) -> Path:
     db_path = paths.db_path(db_path)
     return Path(db_path).parent / "source_status.json"
 
@@ -47,9 +48,10 @@ def _key_of(job):
     return (src, parts[1].lower() if len(parts) > 2 else None)
 
 
-def build(stats, processed, email_count=None, email_error="", email_enabled=None):
+def build(stats, processed, email_count=None, email_error="", email_enabled=None) -> dict[str, Any]:
     """stats: entries from collector_registry.collect_from_config(stats=...); processed: scored offers."""
-    relevant, collected = {}, {}
+    relevant: dict[tuple[str, str | None], int] = {}
+    collected: dict[tuple[str, str | None], int] = {}
     for j in processed:
         k = _key_of(j)
         collected[k] = collected.get(k, 0) + 1
@@ -89,21 +91,21 @@ def build(stats, processed, email_count=None, email_error="", email_enabled=None
     return {"at": datetime.now(UTC).isoformat(timespec="seconds"), "sources": rows}
 
 
-def save(report, db_path=None):
+def save(report, db_path=None) -> Path:
     p = path_for(db_path)
     p.parent.mkdir(parents=True, exist_ok=True)
     p.write_text(json.dumps(report, ensure_ascii=False, indent=1), encoding="utf-8")
     return p
 
 
-def load(db_path=None):
+def load(db_path=None) -> dict[str, Any] | None:
     try:
         return json.loads(path_for(db_path).read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return None
 
 
-def rebuild_from_last_run(config_path=None, run_path=None, db_path=None):
+def rebuild_from_last_run(config_path=None, run_path=None, db_path=None) -> dict[str, Any]:
     """Status from the last morning_run.json (for runs made before this file existed). Search sources without
     their API key are reported as 'no_key'."""
     from fitly import user_env
@@ -113,7 +115,7 @@ def rebuild_from_last_run(config_path=None, run_path=None, db_path=None):
     run = json.loads(run_path.read_text(encoding="utf-8"))
     errors = {(e.get("source"), str(e.get("target") or "").lower()): e.get("error") for e in run.get("errors", [])}
     processed = run.get("ranked_jobs", [])
-    counts = {}
+    counts: dict[tuple[str, str | None], int] = {}
     for j in processed:
         counts[_key_of(j)] = counts.get(_key_of(j), 0) + 1
     stats = []

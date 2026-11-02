@@ -18,6 +18,7 @@ from email import policy
 from email.parser import BytesParser
 from html import unescape
 from pathlib import Path
+from typing import Any
 
 from bs4 import BeautifulSoup
 
@@ -100,7 +101,7 @@ def _job(source, ext, title, company, location, url, route):
     }
 
 
-def parse_linkedin_text(text):
+def parse_linkedin_text(text) -> list[dict[str, Any]]:
     """Plain-text LinkedIn alert: 'Title / Company / Location / View job: <url>' blocks."""
     jobs, lines = {}, [line.strip() for line in (text or "").splitlines()]
     for i, line in enumerate(lines):
@@ -144,12 +145,12 @@ def _block_strings(a, jid, max_up=6):
     return best
 
 
-def parse_linkedin_html(html):
+def parse_linkedin_html(html) -> list[dict[str, Any]]:
     """HTML LinkedIn alert: the job link's text is the title; company and location follow in the same block."""
     soup = BeautifulSoup(html or "", "html.parser")
-    found = {}
+    found: dict[str, dict[str, Any]] = {}
     for a in soup.find_all("a", href=True):
-        m = LINKEDIN.search(a["href"])
+        m = LINKEDIN.search(str(a["href"]))
         if not m:
             continue
         jid, anchor = m.group(1), _clean(a.get_text(" "))
@@ -157,7 +158,7 @@ def parse_linkedin_html(html):
         from_anchor = _useful(anchor)
         title = anchor if from_anchor else (strings[0] if strings else "")
         rest = [s for s in strings if s != title]
-        cand = {
+        cand: dict[str, Any] = {
             "title": title,
             "company": rest[0] if rest else "",
             "location": rest[1] if len(rest) > 1 else "",
@@ -181,11 +182,11 @@ def parse_linkedin_html(html):
     ]
 
 
-def parse_other_boards(html, text):
+def parse_other_boards(html, text) -> list[dict[str, Any]]:
     soup = BeautifulSoup(html or "", "html.parser")
-    links = [(a["href"], _clean(a.get_text(" "))) for a in soup.find_all("a", href=True)]
+    links = [(str(a["href"]), _clean(a.get_text(" "))) for a in soup.find_all("a", href=True)]
     links += [(u, "") for u in re.findall(r"https?://[^\s<>\"']+", text or "")]
-    jobs = {}
+    jobs: dict[tuple[str, str], dict[str, Any]] = {}
     for href, label in links:
         for source, rx in OTHER:
             m = rx.search(unescape(href))
@@ -199,12 +200,12 @@ def parse_other_boards(html, text):
     return list(jobs.values())
 
 
-def parse_message(msg):
+def parse_message(msg) -> list[dict[str, Any]]:
     html_part = msg.get_body(preferencelist=("html",))
     text_part = msg.get_body(preferencelist=("plain",))
     html = html_part.get_content() if html_part else ""
     text = text_part.get_content() if text_part else ""
-    jobs = {}
+    jobs: dict[str, dict[str, Any]] = {}
     # Text blocks are the most regular; HTML fills in whatever the text part lacks.
     for j in parse_linkedin_html(html) + parse_linkedin_text(text):
         old = jobs.get(j["id"])
@@ -223,7 +224,7 @@ def parse_message(msg):
     return list(jobs.values())
 
 
-def parse_eml_bytes(raw):
+def parse_eml_bytes(raw) -> list[dict[str, Any]]:
     return parse_message(BytesParser(policy=policy.default).parsebytes(raw))
 
 
@@ -239,10 +240,11 @@ def _save_seen(ids, path=SEEN):
     Path(path).write_text(json.dumps(sorted(ids)[-5000:], indent=0), encoding="utf-8")
 
 
-def collect_inbox(inbox=INBOX):
+def collect_inbox(inbox=INBOX) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """Parse every .eml in the inbox folder, then move it to inbox/processed/."""
     inbox = Path(inbox)
-    jobs, errors = [], []
+    jobs: list[dict[str, Any]] = []
+    errors: list[dict[str, Any]] = []
     if not inbox.exists():
         return jobs, errors
     done = inbox / "processed"
@@ -257,14 +259,16 @@ def collect_inbox(inbox=INBOX):
     return jobs, errors
 
 
-def load_config(path=None):
+def load_config(path=None) -> dict[str, Any]:
     try:
         return json.loads(Path(path or config.path("email_alerts.json")).read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return {}
 
 
-def collect_imap(cfg, password=None, seen_path=SEEN, imap_factory=imaplib.IMAP4_SSL):
+def collect_imap(
+    cfg, password=None, seen_path=SEEN, imap_factory=imaplib.IMAP4_SSL
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """Read alert e-mails from IMAP (read-only). Returns (jobs, errors)."""
     if not cfg.get("enabled"):
         return [], []
@@ -277,7 +281,8 @@ def collect_imap(cfg, password=None, seen_path=SEEN, imap_factory=imaplib.IMAP4_
         ]
     since = (datetime.now(UTC) - timedelta(days=int(cfg.get("since_days", 3)))).strftime("%d-%b-%Y")
     seen = _load_seen(seen_path)
-    jobs, errors = [], []
+    jobs: list[dict[str, Any]] = []
+    errors: list[dict[str, Any]] = []
     conn = imap_factory(cfg.get("host", "imap.gmail.com"), int(cfg.get("port", 993)))
     try:
         conn.login(cfg["user"], password)
@@ -298,18 +303,18 @@ def collect_imap(cfg, password=None, seen_path=SEEN, imap_factory=imaplib.IMAP4_
                 try:
                     jobs.extend(parse_message(msg))
                     seen.add(mid)
-                except Exception as exc:
+                except Exception as exc:  # deliberate: one malformed alert never stops the others
                     errors.append({"source": "email", "target": mid, "error": str(exc)})
     finally:
         try:
             conn.logout()
-        except Exception:
+        except (imaplib.IMAP4.error, OSError):  # connection already gone
             pass
     _save_seen(seen, seen_path)
     return jobs, errors
 
 
-def collect(inbox=INBOX, config_path=None):
+def collect(inbox=INBOX, config_path=None) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     jobs, errors = collect_inbox(inbox)
     cfg = load_config(config_path)
     if cfg.get("enabled"):
@@ -317,6 +322,6 @@ def collect(inbox=INBOX, config_path=None):
             j2, e2 = collect_imap(cfg)
             jobs += j2
             errors += e2
-        except Exception as exc:
+        except Exception as exc:  # deliberate: network source (login refused, server down, bad settings), reported
             errors.append({"source": "email", "target": cfg.get("host"), "error": str(exc)})
     return jobs, errors

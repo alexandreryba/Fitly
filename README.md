@@ -101,7 +101,7 @@ src/fitly/
 ├── apply/                form analysis, local server for the extension, Playwright pre-fill,
 │                         candidate pack, optional AI drafts
 ├── tracking/             statuses, follow-ups, updates proposed from e-mails
-└── ui/                   Streamlit interface
+└── ui/                   Streamlit interface: app.py lays out the page, one module per tab in tabs/
 extension/                Chrome / Edge extension (Manifest V3): capture and pre-fill
 tests/                    pytest suite, plus opt-in end-to-end tests
 ```
@@ -117,6 +117,7 @@ may be typed, from the same rules as the Playwright mode.
 python -m pytest -q          # unit, UI (streamlit.testing) and headless-browser tests
 python -m ruff check .       # lint
 python -m ruff format .      # format
+python -m mypy               # type check (settings in pyproject.toml)
 ```
 
 The tests never read your personal settings, keys or offers: `tests/conftest.py` points them at the shared

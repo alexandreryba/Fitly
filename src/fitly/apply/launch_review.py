@@ -9,11 +9,16 @@ Fitly never clicks a submit button. CAPTCHA / anti-bot = that tab is left untouc
 A summary is written to data/prefill/last_run.json (read by the interface).
 """
 
+from __future__ import annotations
+
 import argparse
 import json
 import os
+import sqlite3
 import sys
 from datetime import UTC, datetime
+from pathlib import Path
+from typing import Any
 
 from fitly import config, paths
 
@@ -21,12 +26,12 @@ if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(errors="replace")
 
 
-def current_db():
+def current_db() -> str:
     """Database in use, read at call time (sandbox/tests set FITLY_DB after this module may be imported)."""
     return paths.db_path()
 
 
-def out_dir():
+def out_dir() -> Path:
     """Pre-fill reports and screenshots, next to the database in use."""
     return paths.work_dir() / "prefill"
 
@@ -34,7 +39,7 @@ def out_dir():
 PERSONAL = {"first_name", "last_name", "full_name", "email", "phone", "linkedin", "location", "country", "cv_file"}
 
 
-def cv_path(cv_id):
+def cv_path(cv_id) -> Path | None:
     cvs = config.load("cv_profiles.json").get("cvs", [])
     for c in cvs:
         if c.get("id") == cv_id:
@@ -42,7 +47,7 @@ def cv_path(cv_id):
     return None
 
 
-def form_url(url):
+def form_url(url) -> str:
     """Application form page for job-board URLs that put the form on a sub-page."""
     from urllib.parse import urlparse
 
@@ -58,7 +63,7 @@ def form_url(url):
     return url
 
 
-def load_answers(path=None):
+def load_answers(path=None) -> dict[str, Any]:
     """Validated answers for forms: `path`, else the user's answer_library.json ({} when there is none)."""
     if path:
         p = paths.project_path(path)
@@ -68,7 +73,7 @@ def load_answers(path=None):
     return {k: (v.get("value") if isinstance(v, dict) else v) for k, v in answers.items() if not k.startswith("_")}
 
 
-def job_targets(job_ids):
+def job_targets(job_ids) -> list[dict[str, Any]]:
     from fitly.storage import connect
 
     con = connect(current_db())
@@ -101,31 +106,35 @@ OPENER = (
 CAPTCHA_FRAMES = ("captcha-delivery.com", "recaptcha", "hcaptcha", "challenges.cloudflare.com", "turnstile")
 
 
-def captcha_present(page):
+def captcha_present(page) -> bool:
     """A challenge frame actually shown (invisible reCAPTCHA/hCaptcha badges of Lever, Greenhouse... are ignored)."""
+    from playwright.sync_api import Error as PlaywrightError
+
     for f in page.frames:
         if f is page.main_frame or not any(k in (f.url or "").lower() for k in CAPTCHA_FRAMES):
             continue
         try:
             box = f.frame_element().bounding_box()
-        except Exception:
+        except PlaywrightError:  # frame detached meanwhile
             box = None
         if box and box["width"] >= 250 and box["height"] >= 250:
             return True
     return False
 
 
-def usable_fields(fields):
+def usable_fields(fields) -> int:
     """How many inspected fields Fitly knows how to fill (identity, contact, CV)."""
     from fitly.apply.application_session import field_key
 
     return sum(1 for f in fields if f.get("type") == "file" or field_key(f) in PERSONAL)
 
 
-def open_application_form(page):
+def open_application_form(page) -> bool:
     """On a job-description page, open the application form via its 'Postuler/Apply' opener.
     Only short opener labels; never a type=submit button and never anything inside a <form>."""
     import re as _re
+
+    from playwright.sync_api import Error as PlaywrightError
 
     from fitly.scoring.pipeline import _norm
 
@@ -146,17 +155,19 @@ def open_application_form(page):
                 el.evaluate("e => e.click()")  # DOM click: a cookie banner overlay is left for the user
             page.wait_for_timeout(2500)
             return True
-        except Exception:
+        except PlaywrightError:  # detached, hidden or slow element: try the next one
             continue
     return False
 
 
-def prefill_page(page, target, base_answers, no_cv):
+def prefill_page(page, target, base_answers, no_cv) -> dict[str, Any]:
     """Fill one tab. Returns a summary dict; never clicks submit."""
+    from playwright.sync_api import Error as PlaywrightError
+
     from fitly.apply.browser_session import BrowserApplicationSession
 
     answers = dict(base_answers)
-    summary = {
+    summary: dict[str, Any] = {
         "job_id": target.get("id"),
         "company": target.get("company"),
         "title": target.get("title"),
@@ -181,7 +192,7 @@ def prefill_page(page, target, base_answers, no_cv):
     if is_relay(target["url"], target.get("company")):
         try:
             session.open(target["url"])
-        except Exception:
+        except PlaywrightError:  # the tab stays open for the user whatever the page did
             pass
         summary.update(
             status="platform",
@@ -216,12 +227,12 @@ def prefill_page(page, target, base_answers, no_cv):
             )
             return summary
         gate = session.gate(answers)
-    except Exception as exc:
+    except Exception as exc:  # deliberate: whatever breaks on this site is reported for this tab, the others go on
         summary.update(status="error", reason=str(exc).splitlines()[0][:200])
         return summary
     plan = gate.get("fill_plan", {})
     if gate["status"] != "READY_FOR_HUMAN_REVIEW":
-        reasons = {
+        reasons: dict[str | None, str] = {
             "captcha": "CAPTCHA détecté",
             "anti_bot": "protection anti-robot détectée",
             "unknown_or_unvalidated_required_field": "question obligatoire inconnue (mode strict)",
@@ -244,12 +255,12 @@ def prefill_page(page, target, base_answers, no_cv):
         out_dir().mkdir(parents=True, exist_ok=True)
         try:
             summary["screenshot"] = session.snapshot(str(out_dir() / f"job_{target['id']}.png"))
-        except Exception:
+        except (PlaywrightError, OSError):  # the screenshot is a bonus
             pass
     return summary
 
 
-def open_tabs_for_extension(job_ids, no_cv=False):
+def open_tabs_for_extension(job_ids, no_cv=False) -> list[str]:
     """Default mode: open each offer's form in a new tab of the user's Chrome; the Fitly extension
     (installed in that Chrome) pre-fills it using /fill/plan. Returns the list of opened URLs."""
     from datetime import datetime
@@ -294,7 +305,7 @@ def open_tabs_for_extension(job_ids, no_cv=False):
     return urls
 
 
-def print_summary(s):
+def print_summary(s) -> None:
     head = f"[{s.get('company') or ''}] {s.get('title') or s['url']}"
     if s.get("status") == "prefilled":
         print(f"\n✓ {head} : {s['filled']} champ(s) pré-rempli(s)")
@@ -312,19 +323,21 @@ def print_summary(s):
         print("    attention :", w)
 
 
-def wait_until_closed(browser, context):
+def wait_until_closed(browser, context) -> None:
     """Keep the browser alive until the user closes every tab (or the window)."""
+    from playwright.sync_api import Error as PlaywrightError
+
     while True:
         try:
             pages = [p for p in context.pages if not p.is_closed()]
             if not pages or not browser.is_connected():
                 return
             pages[0].wait_for_timeout(1000)
-        except Exception:
+        except PlaywrightError:  # browser closed or disconnected
             return
 
 
-def main(argv=None):
+def main(argv=None) -> int:
     p = argparse.ArgumentParser()
     p.add_argument("--url", help="application form URL")
     p.add_argument("--job", type=int, help="one job id from the database")
@@ -349,7 +362,7 @@ def main(argv=None):
     )
     args = p.parse_args(argv)
 
-    targets = []
+    targets: list[dict[str, Any]] = []
     if args.demo:
         name = "formulaire_entrainement.html" if args.demo == "ok" else "formulaire_entrainement_stop.html"
         targets = [
@@ -382,6 +395,7 @@ def main(argv=None):
         t["url"] = form_url(t["url"])
 
     try:
+        from playwright.sync_api import Error as PlaywrightError
         from playwright.sync_api import sync_playwright
     except ImportError:
         raise SystemExit('Playwright is not installed. Run: pip install -e ".[browser]"') from None
@@ -398,7 +412,7 @@ def main(argv=None):
             try:
                 browser, context = open_user_window(pw)
                 attached = True  # Chrome window "Fitly", new tabs
-            except Exception as exc:
+            except (RuntimeError, OSError, PlaywrightError) as exc:  # no Chrome, not started, attach refused
                 print("Fenêtre Chrome Fitly indisponible :", exc, "→ fenêtre temporaire")
                 browser = launch(pw, headless=False)
                 context = browser.new_context(no_viewport=True)
@@ -412,7 +426,7 @@ def main(argv=None):
                     from fitly.tracking import tracker
 
                     tracker.set_status(t["id"], "prepared", note="formulaire pré-rempli", db_path=current_db())
-                except Exception as exc:
+                except (sqlite3.Error, OSError, ValueError) as exc:
                     print("    (statut non mis à jour :", exc, ")")
         out_dir().mkdir(parents=True, exist_ok=True)
         (out_dir() / "last_run.json").write_text(
@@ -432,7 +446,7 @@ def main(argv=None):
                 try:
                     if pg.url in ("about:blank", "chrome://newtab/") and len(context.pages) > 1:
                         pg.close()
-                except Exception:
+                except PlaywrightError:
                     pass
             print("Les onglets restent ouverts dans la fenêtre Chrome « Fitly ». Tu peux fermer ce terminal.")
             return 0  # the Chrome window lives on its own; just disconnect
@@ -443,7 +457,7 @@ def main(argv=None):
             input("\nAppuie sur Entrée pour fermer le navigateur...")
         try:
             browser.close()
-        except Exception:
+        except PlaywrightError:  # already closed by the user
             pass
     return 0
 

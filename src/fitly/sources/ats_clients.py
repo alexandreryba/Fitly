@@ -12,8 +12,10 @@ from __future__ import annotations
 import json
 import re
 import time
+from collections.abc import Callable
 from datetime import UTC
 from html import unescape
+from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.parse import quote, urlencode
 from urllib.request import Request, urlopen
@@ -29,13 +31,13 @@ DETAIL_HINT = re.compile(
 )
 
 
-def plain(value):
+def plain(value) -> str:
     value = unescape(str(value or ""))
     value = re.sub(r"<(script|style)[\s\S]*?</\1>", " ", value, flags=re.I)
     return re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", value)).strip()
 
 
-def iso_date(value):
+def iso_date(value) -> str:
     """Posting date as YYYY-MM-DD from epoch ms/s, ISO strings or 'YYYY-MM-DD'; '' if unknown."""
     from datetime import datetime
 
@@ -60,14 +62,14 @@ def _ssl_context():
         import certifi
 
         return ssl.create_default_context(cafile=certifi.where())
-    except Exception:
+    except (ImportError, OSError):  # certifi missing, or its bundle unreadable
         return ssl.create_default_context()
 
 
 _SSL = None
 
 
-def get_json(url, headers=None, data=None, retries=2, timeout=20, pause=1.5):
+def get_json(url, headers=None, data=None, retries=2, timeout=20, pause=1.5) -> Any:
     """GET (or POST form when `data` is given) with bounded retries on 429/5xx/timeouts."""
     for attempt in range(retries + 1):
         req = Request(url, data=data, headers={"User-Agent": UA, "Accept": "application/json", **(headers or {})})
@@ -105,7 +107,7 @@ def _job(source, board, ext, title, company, location, description, url, posted=
     }
 
 
-def list_ashby(board, company=None):
+def list_ashby(board, company=None) -> list[dict[str, Any]]:
     data = get_json(f"https://api.ashbyhq.com/posting-api/job-board/{quote(board)}?includeCompensation=false")
     out = []
     for j in data.get("jobs", []):
@@ -131,7 +133,7 @@ def list_ashby(board, company=None):
     return out
 
 
-def list_smartrecruiters(board, company=None, country="fr", max_details=150):
+def list_smartrecruiters(board, company=None, country="fr", max_details=150) -> list[dict[str, Any]]:
     base = f"https://api.smartrecruiters.com/v1/companies/{quote(board)}/postings"
     postings, offset = [], 0
     while True:
@@ -182,7 +184,7 @@ def list_smartrecruiters(board, company=None, country="fr", max_details=150):
     return out
 
 
-def list_workable(board, company=None):
+def list_workable(board, company=None) -> list[dict[str, Any]]:
     data = get_json(f"https://apply.workable.com/api/v1/widget/accounts/{quote(board)}?details=true")
     out = []
     for j in data.get("jobs", []):
@@ -208,7 +210,7 @@ def list_workable(board, company=None):
     return out
 
 
-def list_recruitee(board, company=None):
+def list_recruitee(board, company=None) -> list[dict[str, Any]]:
     data = get_json(f"https://{quote(board)}.recruitee.com/api/offers/")
     out = []
     for j in data.get("offers", []):
@@ -237,7 +239,7 @@ FT_TOKEN_URL = "https://entreprise.francetravail.fr/connexion/oauth2/access_toke
 FT_SEARCH_URL = "https://api.francetravail.io/partenaire/offresdemploi/v2/offres/search"
 
 
-def france_travail_token(client_id=None, client_secret=None):
+def france_travail_token(client_id=None, client_secret=None) -> str:
     client_id = client_id or user_env.get("FT_CLIENT_ID")
     client_secret = client_secret or user_env.get("FT_CLIENT_SECRET")
     if not client_id or not client_secret:
@@ -263,7 +265,7 @@ def list_france_travail(
     max_per_query=150,
     token=None,
     published_since_days=7,
-):
+) -> list[dict[str, Any]]:
     """One search per keyword over the given départements; returns normalized jobs."""
     token = token or france_travail_token()
     out, seen = [], set()
@@ -307,7 +309,7 @@ def list_france_travail(
 
 
 # --- Teamtailor (public RSS career feed) ----------------------------------------------------------
-def list_teamtailor(board, company=None):
+def list_teamtailor(board, company=None) -> list[dict[str, Any]]:
     """https://<board>.teamtailor.com/jobs.rss — public feed of a company's Teamtailor career site."""
     import xml.etree.ElementTree as ET
 
@@ -317,7 +319,7 @@ def list_teamtailor(board, company=None):
     out = []
     for it in root.iter("item"):
 
-        def get(tag, it=it):
+        def get(tag, it=it) -> str:
             return (it.findtext(tag) or "").strip()
 
         city = next((c.text for c in it.iter() if c.tag.endswith("city") and c.text), "")
@@ -359,7 +361,7 @@ def _key(name):
     return value
 
 
-def list_adzuna(keywords, where="Paris", country="fr", max_days_old=21, pages=2):
+def list_adzuna(keywords, where="Paris", country="fr", max_days_old=21, pages=2) -> list[dict[str, Any]]:
     """Adzuna official API: aggregates many French job boards. Env: ADZUNA_APP_ID, ADZUNA_APP_KEY."""
     app_id, app_key = _key("ADZUNA_APP_ID"), _key("ADZUNA_APP_KEY")
     out, seen = [], set()
@@ -399,7 +401,7 @@ def list_adzuna(keywords, where="Paris", country="fr", max_days_old=21, pages=2)
     return out
 
 
-def list_jooble(keywords, where="Paris, France", pages=2):
+def list_jooble(keywords, where="Paris, France", pages=2) -> list[dict[str, Any]]:
     """Jooble official API (free key on request). Env: JOOBLE_API_KEY."""
     key = _key("JOOBLE_API_KEY")
     out, seen = [], set()
@@ -518,7 +520,7 @@ def _company_tokens(company):
     return toks + (["".join(words)] if len(words) > 1 else [])
 
 
-def is_employer_link(url, company=None):
+def is_employer_link(url, company=None) -> bool:
     """Known careers software, or a domain bearing the company's name (careers.example.com, jobs.acme.fr)."""
     from urllib.parse import urlparse
 
@@ -530,17 +532,19 @@ def is_employer_link(url, company=None):
     return bool(company) and any(t in host.replace("-", "") for t in _company_tokens(company))
 
 
-def best_apply_link(options, company=None):
+def best_apply_link(options, company=None) -> str | None:
     """The employer's own apply link when Google Jobs lists one; else a non-board link; else the first one."""
     links = [o.get("link") for o in (options or []) if isinstance(o, dict) and o.get("link")]
     from urllib.parse import urlparse
 
     employer = [u for u in links if is_employer_link(u, company)]
-    direct = [u for u in links if not any(b in urlparse(u).netloc.lower() for b in JOB_BOARDS)]
+    direct = [u for u in links if not any(b in urlparse(str(u)).netloc.lower() for b in JOB_BOARDS)]
     return (employer or direct or links or [None])[0]
 
 
-def list_google_jobs(keywords, location="Paris, Ile-de-France, France", max_searches=4, rotate=True):
+def list_google_jobs(
+    keywords, location="Paris, Ile-de-France, France", max_searches=4, rotate=True
+) -> list[dict[str, Any]]:
     """Google Jobs results through SerpApi (paid API with a free monthly quota). Env: SERPAPI_KEY.
     max_searches caps the API calls per collection run (budget)."""
     key = _key("SERPAPI_KEY")
@@ -612,7 +616,7 @@ def _relative_date(text):
     return (datetime.now(UTC) - timedelta(days=days)).strftime("%Y-%m-%d")
 
 
-LISTERS = {
+LISTERS: dict[str, Callable[..., list[dict[str, Any]]]] = {
     "ashby": list_ashby,
     "smartrecruiters": list_smartrecruiters,
     "workable": list_workable,
@@ -620,17 +624,21 @@ LISTERS = {
     "teamtailor": list_teamtailor,
 }
 # Keyword-search sources (need the user's own free API key in an environment variable).
-SEARCHERS = {"adzuna": list_adzuna, "jooble": list_jooble, "google_jobs": list_google_jobs}
+SEARCHERS: dict[str, Callable[..., list[dict[str, Any]]]] = {
+    "adzuna": list_adzuna,
+    "jooble": list_jooble,
+    "google_jobs": list_google_jobs,
+}
 
 
-def slug_candidates(company):
+def slug_candidates(company) -> list[str]:
     base = re.sub(r"[^a-z0-9 ]+", "", plain(company).lower()).strip()
     words = base.split()
     cands = ["".join(words), "-".join(words), words[0] if words else ""]
     return [c for i, c in enumerate(cands) if c and c not in cands[:i]]
 
 
-def probe(company, timeout=10):
+def probe(company, timeout=10) -> list[dict[str, Any]]:
     """Find which public job boards exist for a company. Returns [{type, board, jobs}]."""
     from fitly.sources.greenhouse_client import list_jobs as gh
     from fitly.sources.lever_client import list_postings as lv
@@ -659,7 +667,7 @@ def probe(company, timeout=10):
         for kind, fn in checks.items():
             try:
                 n = fn(slug)
-            except Exception:
+            except Exception:  # deliberate: an unknown board fails in many ways (404, HTML instead of JSON, bad XML...)
                 continue
             # Lever answers [] for unknown boards and SmartRecruiters 0 for unknown companies.
             if n:

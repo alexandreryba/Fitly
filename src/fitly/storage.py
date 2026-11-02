@@ -66,7 +66,7 @@ CREATE INDEX IF NOT EXISTS idx_job_sources_posting ON job_sources(source, extern
 """
 
 
-def connect(db_path=None):
+def connect(db_path=None) -> sqlite3.Connection:
     """Open the database (created and migrated on first use); `None` means the database in use."""
     p = paths.project_path(paths.db_path(db_path))
     p.parent.mkdir(parents=True, exist_ok=True)
@@ -101,7 +101,7 @@ def _migrate(con):
     con.commit()
 
 
-def score_details(job):
+def score_details(job) -> str | None:
     """Compact JSON explanation of the score (role matched + point breakdown)."""
     exp = job.get("match_explanation") or {}
     if not exp:
@@ -120,7 +120,7 @@ def _identity_parts(job):
     return [" ".join((job.get(k) or "").strip().lower().split()) for k in ("company", "title", "location")]
 
 
-def canonical_key(job):
+def canonical_key(job) -> str:
     # Prefer a cross-source identity when company, title and location are all
     # present. Source-specific IDs remain a fallback for incomplete records.
     parts = _identity_parts(job)
@@ -132,7 +132,7 @@ def canonical_key(job):
     return "incomplete:" + "|".join(parts)
 
 
-def legacy_key(job):
+def legacy_key(job) -> str:
     """Key format of the first versions (rows stored back then keep it)."""
     ext = job.get("external_id")
     if ext:
@@ -169,7 +169,7 @@ def _find_existing(con, job, key):
     return None
 
 
-def upsert_jobs(jobs, db_path=None):
+def upsert_jobs(jobs, db_path=None) -> dict[str, int]:
     now = datetime.now(UTC).isoformat()
     con = connect(db_path)
     inserted, updated = 0, 0

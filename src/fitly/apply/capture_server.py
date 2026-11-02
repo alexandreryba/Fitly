@@ -17,10 +17,12 @@ import hashlib
 import json
 import os
 import re
+import sqlite3
 import threading
 from datetime import UTC
 from html import unescape
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from typing import Any
 from urllib.parse import urlparse
 
 from fitly import config, paths
@@ -29,7 +31,7 @@ PORT = int(os.environ.get("FITLY_CAPTURE_PORT", "8765"))
 MAX_BODY = 5_000_000
 
 
-def extension_id(manifest=None):
+def extension_id(manifest=None) -> str:
     """ID Chrome and Edge give the unpacked extension: derived from the public key pinned in its manifest."""
     manifest = manifest or paths.EXTENSION_DIR / "manifest.json"
     key = json.loads(manifest.read_text(encoding="utf-8"))["key"]
@@ -72,7 +74,7 @@ def _plain(html):
     return _clean(re.sub(r"<[^>]+>", " ", html))
 
 
-def site_of(url):
+def site_of(url) -> tuple[str | None, str | None]:
     for source, rx in SITES:
         m = rx.search(url or "")
         if m:
@@ -101,7 +103,7 @@ def _location(posting):
     return text
 
 
-def jobs_from_postings(postings, page_url):
+def jobs_from_postings(postings, page_url) -> list[dict[str, Any]]:
     """schema.org JobPosting objects (present on most job-detail pages) -> Fitly jobs."""
     out = []
     for p in postings:
@@ -142,9 +144,9 @@ def jobs_from_postings(postings, page_url):
     return [j for j in out if j["title"]]
 
 
-def jobs_from_links(links):
+def jobs_from_links(links) -> list[dict[str, Any]]:
     """Results pages: job links + the text of their card ('title / company / location' lines)."""
-    found = {}
+    found: dict[tuple[str, str | None], dict[str, Any]] = {}
     for link in links:
         href = link.get("href") or ""
         source, ext = site_of(href)
@@ -177,7 +179,7 @@ def jobs_from_links(links):
     return list(found.values())
 
 
-def jobs_from_payload(payload):
+def jobs_from_payload(payload) -> list[dict[str, Any]]:
     page_url = str(payload.get("url") or "")
     jobs = jobs_from_postings(payload.get("postings") or [], page_url)
     if not jobs:
@@ -185,7 +187,7 @@ def jobs_from_payload(payload):
     return jobs
 
 
-def ingest(payload, db_path=None):
+def ingest(payload, db_path=None) -> dict[str, Any]:
     """Score and store captured offers. Returns a small report for the extension popup."""
     from fitly.scoring.pipeline import run_pipeline
     from fitly.storage import upsert_jobs
@@ -207,7 +209,7 @@ def ingest(payload, db_path=None):
     }
 
 
-def extension_fingerprint():
+def extension_fingerprint() -> str:
     """Hash of the extension files on disk: the extension reloads itself when it differs from what it loaded."""
     import hashlib
 
@@ -239,7 +241,7 @@ def _default_cv():
     return "tech_fr" if "tech_fr" in ids else (ids[0] if ids else None)
 
 
-def resolve_job(url):
+def resolve_job(url) -> int | None:
     """Offer whose page (or employer page) is this URL: same host and path, query and fragment ignored."""
     u = urlparse(str(url or ""))
     if not u.netloc:
@@ -262,7 +264,7 @@ def resolve_job(url):
     return None
 
 
-def go_page(job_id):
+def go_page(job_id) -> str | None:
     """Relay page opened by Fitly: the extension marks the tab here, BEFORE the offer's site loads, so
     redirections (which drop the #fitly-fill marker) no longer lose the tab. Then it opens the offer."""
     import html
@@ -294,7 +296,7 @@ def _rules():
     return config.load("application_rules.json", default={})
 
 
-def fill_plan(payload):
+def fill_plan(payload) -> dict[str, Any]:
     """Fields inspected by the extension -> actions to apply. Same rules as the Playwright pre-filling:
     validated answers only, standard questions, required consents (never newsletters), nothing submitted."""
     from fitly.apply import launch_review
@@ -348,7 +350,7 @@ def fill_plan(payload):
     }
 
 
-def fill_cv(job_id):
+def fill_cv(job_id) -> dict[str, Any]:
     import base64
 
     from fitly.apply import launch_review
@@ -373,7 +375,7 @@ def fill_cv(job_id):
 _REPORT_LOCK = threading.Lock()  # tabs report at the same moment: one read-modify-write of last_run.json at a time
 
 
-def fill_report(payload):
+def fill_report(payload) -> dict[str, Any]:
     """Store one tab's result in last_run.json (read by the interface) and mark the offer 'prepared'."""
     with _REPORT_LOCK:
         return _fill_report(payload)
@@ -414,7 +416,7 @@ def _fill_report(payload):
             con.close()
             if row:
                 entry.update(company=row["company"], title=row["title"])
-        except Exception:
+        except (sqlite3.Error, OSError):  # the report is written without the offer's name
             pass
     previous = [r for r in report.get("results", []) if str(r.get("job_id")) == str(job_id)]
     if previous and previous[-1].get("status") == "prefilled" and entry["status"] != "prefilled":
@@ -426,7 +428,7 @@ def _fill_report(payload):
             from fitly.sources import employer_match
 
             employer_match.mark_closed(job_id, _db())
-        except Exception:
+        except (sqlite3.Error, OSError):
             pass
     if str(job_id).isdigit() and (payload.get("filled") or 0) > 0:
         try:
@@ -438,7 +440,7 @@ def _fill_report(payload):
             con.close()
             if row and row["status"] == "go":
                 tracker.set_status(int(job_id), "prepared", note="formulaire pré-rempli (onglet Chrome)", db_path=_db())
-        except Exception:
+        except (sqlite3.Error, OSError, ValueError):  # ValueError: offer deleted meanwhile
             pass
     return {"ok": True}
 
@@ -453,11 +455,11 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(data)))
         if self._allowed_origin():
-            self.send_header("Access-Control-Allow-Origin", self.headers.get("Origin"))
+            self.send_header("Access-Control-Allow-Origin", EXTENSION_ORIGIN)  # the Origin, as just checked
         self.end_headers()
         self.wfile.write(data)
 
-    def do_GET(self):
+    def do_GET(self) -> None:
         if self.path.startswith("/go?"):
             from urllib.parse import parse_qs
 
@@ -489,11 +491,11 @@ class Handler(BaseHTTPRequestHandler):
             job_id = (parse_qs(urlparse(self.path).query).get("job_id") or [""])[0]
             try:
                 return self._send(200, fill_cv(job_id))
-            except Exception as exc:
+            except Exception as exc:  # report, never crash the server
                 return self._send(500, {"ok": False, "message": str(exc)})
         self._send(404, {"ok": False})
 
-    def do_POST(self):
+    def do_POST(self) -> None:
         routes = {"/capture": ingest, "/fill/plan": fill_plan, "/fill/report": fill_report}
         handler = routes.get(self.path)
         if handler is None:
@@ -509,15 +511,15 @@ class Handler(BaseHTTPRequestHandler):
         except Exception as exc:  # report, never crash the server
             self._send(500, {"ok": False, "message": f"Erreur : {exc}"})
 
-    def log_message(self, *args):
+    def log_message(self, *args) -> None:
         pass
 
 
-def make_server(port=PORT):
+def make_server(port=PORT) -> ThreadingHTTPServer:
     return ThreadingHTTPServer(("127.0.0.1", port), Handler)
 
 
-def start_in_background(port=PORT):
+def start_in_background(port=PORT) -> ThreadingHTTPServer | None:
     """Start once (idempotent per process); returns the server or None if the port is taken."""
     try:
         server = make_server(port)

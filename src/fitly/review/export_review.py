@@ -38,7 +38,7 @@ FIELDS = [
 
 
 # ';' because Excel on a French-locale Windows splits columns on ';' (list separator).
-def main(inp=INP, out=OUT, delimiter=";"):
+def main(inp=INP, out=OUT, delimiter=";") -> int:
     inp, out = Path(inp), Path(out)
     if not inp.exists():
         print("Missing review_queue.json; run `fitly review` first.")

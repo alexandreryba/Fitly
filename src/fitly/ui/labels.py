@@ -28,7 +28,7 @@ SOURCE_LABELS = {
 }
 
 
-def source_label(src, via=None):
+def source_label(src, via=None) -> str:
     label = SOURCE_LABELS.get(src or "", src or "?")
     if via:  # aggregators: show the original site ("Google Jobs · via Welcome To The Jungle")
         label += f" · {str(via).replace('via ', '').strip()}"

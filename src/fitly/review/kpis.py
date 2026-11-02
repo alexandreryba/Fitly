@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any
 
 from fitly import paths
 from fitly.storage import connect
@@ -14,7 +15,7 @@ MANUAL_ROUTES = ("linkedin_easy_apply", "linkedin_check")
 REPLIED = ("interview", "offer", "rejected")
 
 
-def last_run_summary(path=None):
+def last_run_summary(path=None) -> dict[str, Any]:
     p = Path(path) if path else paths.work_dir() / "morning_run.json"
     try:
         return json.loads(p.read_text(encoding="utf-8")).get("summary", {})
@@ -22,7 +23,7 @@ def last_run_summary(path=None):
         return {}
 
 
-def compute(db_path=None, today=None, run_summary=None, queue=None):
+def compute(db_path=None, today=None, run_summary=None, queue=None) -> dict[str, Any]:
     from fitly.review.review_queue import build
     from fitly.tracking.tracker import due_followups
 
@@ -92,7 +93,7 @@ def compute(db_path=None, today=None, run_summary=None, queue=None):
     }
 
 
-def log_effort(job_id, minutes, db_path=None):
+def log_effort(job_id, minutes, db_path=None) -> None:
     """Record time spent on an application (feeds 'interviews per hour of work')."""
     if minutes is None or float(minutes) <= 0:
         return

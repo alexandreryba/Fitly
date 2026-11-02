@@ -6,6 +6,7 @@ The adapter inspects a page and types validated answers; it never clicks the fin
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 # Technical or action inputs that are never form questions.
 SKIP_TYPES = {"hidden", "submit", "button", "reset", "image"}
@@ -53,14 +54,16 @@ DESCRIBE = """el => {
 }"""
 
 
-def inspect_page(page):
+def inspect_page(page) -> dict[str, Any]:
+    from playwright.sync_api import Error as PlaywrightError
+
     text = page.locator("body").inner_text()
     fields, failures, last_error = [], 0, None
     elements = page.locator("input, textarea, select").all()
     for el in elements:
         try:
             info = el.evaluate(DESCRIBE)
-        except Exception as exc:
+        except PlaywrightError as exc:  # element detached or page navigating
             failures, last_error = failures + 1, exc
             continue
         if info["type"] in SKIP_TYPES or not info["visible"]:
@@ -71,8 +74,10 @@ def inspect_page(page):
     return {"text": text, "fields": fields}
 
 
-def fill_validated(page, fill_plan):
+def fill_validated(page, fill_plan) -> dict[str, Any]:
     """Fill only validated values. Never ticks a checkbox, never clicks submit."""
+    from playwright.sync_api import Error as PlaywrightError
+
     filled, skipped = 0, []
     for item in fill_plan.get("plan", []):
         field = item["field"]
@@ -95,16 +100,16 @@ def fill_validated(page, fill_plan):
                     continue
                 try:
                     loc.check(timeout=3000)
-                except Exception:  # covered by an overlay (cookie banner...): plain DOM click
+                except PlaywrightError:  # covered by an overlay (cookie banner...): plain DOM click
                     loc.evaluate("e => { if (!e.checked) e.click(); }")
             elif kind == "select":
                 try:
                     loc.select_option(label=str(item["value"]), timeout=3000)
-                except Exception:
+                except PlaywrightError:  # no option with that label: try it as the value
                     loc.select_option(value=str(item["value"]), timeout=3000)
             else:
                 loc.fill(str(item["value"]), timeout=5000)
-        except Exception as exc:  # one stubborn field never stops the others
+        except Exception as exc:  # deliberate: one stubborn field (any error) never stops the others
             skipped.append({"field": field.get("label"), "reason": str(exc).splitlines()[0][:120]})
             continue
         filled += 1

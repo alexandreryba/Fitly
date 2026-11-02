@@ -5,13 +5,20 @@ Order: Microsoft Edge (signed, always on Windows 11) -> Google Chrome -> Playwri
 profile: no access to the user's cookies, sessions or saved passwords.
 """
 
+from __future__ import annotations
+
 import os
 import subprocess
 import time
+from http.client import HTTPException
 from pathlib import Path
+from typing import TYPE_CHECKING, Any
 from urllib.request import urlopen
 
 from fitly.paths import DATA_DIR
+
+if TYPE_CHECKING:
+    from playwright.sync_api import Browser, BrowserContext
 
 CHANNELS = ("msedge", "chrome", None)
 
@@ -27,7 +34,7 @@ BROWSER_PATHS = [
 ]
 
 
-def open_in_user_chrome(urls):
+def open_in_user_chrome(urls) -> str:
     """Open URLs as new tabs in the user's own Chrome (its last active window). Returns the executable used."""
     exe = (
         next((p for p in BROWSER_PATHS if Path(p).is_file() and p.lower().endswith("chrome.exe")), None)
@@ -48,7 +55,7 @@ def _cdp_ready(port=CDP_PORT):
     try:
         with urlopen(f"http://127.0.0.1:{port}/json/version", timeout=1) as r:
             return r.status == 200
-    except Exception:
+    except (OSError, HTTPException):  # not listening (yet)
         return False
 
 
@@ -56,7 +63,7 @@ def _browser_exe():
     return next((p for p in BROWSER_PATHS if Path(p).is_file()), None)
 
 
-def open_user_window(pw, port=CDP_PORT):
+def open_user_window(pw, port=CDP_PORT) -> tuple[Browser, BrowserContext]:
     """Attach to the Fitly Chrome window (start it if needed). Returns (browser, context).
 
     The window is a normal, visible Chrome using a dedicated profile in data/chrome_profile; it keeps
@@ -95,14 +102,16 @@ def open_user_window(pw, port=CDP_PORT):
     return browser, context
 
 
-def launch(pw, headless=False):
+def launch(pw, headless=False) -> Browser:
+    from playwright.sync_api import Error as PlaywrightError
+
     errors = []
     for channel in CHANNELS:
         try:
-            kwargs = {"headless": headless}
+            kwargs: dict[str, Any] = {"headless": headless}
             if channel:
                 kwargs["channel"] = channel
             return pw.chromium.launch(**kwargs)
-        except Exception as exc:
+        except PlaywrightError as exc:  # channel not installed, or blocked by security software
             errors.append(f"{channel or 'chromium'}: {str(exc).splitlines()[0][:100]}")
     raise RuntimeError("No usable browser (install Microsoft Edge or Google Chrome):\n  " + "\n  ".join(errors))
