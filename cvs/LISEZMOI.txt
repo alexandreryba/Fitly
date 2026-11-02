@@ -5,6 +5,9 @@ Depose ici tes CV au format PDF, avec exactement les noms declares dans config/c
   cv_ai_fr.pdf            cv_ai_en.pdf            AI / GenAI / ML Engineer
   cv_business_fr.pdf      cv_business_en.pdf      Consultant, Business Analyst, Product Owner
 
+Tu preferes tes propres noms ou des sous-dossiers (ex. cvs/Tech/FR/CV Prenom NOM.pdf) ? Indique ces chemins
+dans config/local/cv_profiles.json (champ "path" de chaque CV) : c'est ce fichier que Fitly suit.
+
 Fitly choisit le bon CV pour chaque offre (famille de poste d'apres le titre, puis langue de l'annonce)
 et le joint au formulaire quand tu lances le pre-remplissage. `python -m fitly doctor` liste ceux qui
 manquent. Ce dossier n'est jamais versionne : tes CV restent sur ton PC.

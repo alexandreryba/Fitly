@@ -1,8 +1,7 @@
 """Follow applications from the user's e-mails: confirmations ("candidature reçue"), rejections, interviews.
 
-Input: messages as dicts {id, date, from, subject, body} -- from data/mail/messages.json (written by Claude
-from the user's mailbox connector, or by hand), a folder of .eml files, or IMAP (read-only, same settings as
-email_alerts). Output: PROPOSED status changes (data/mail/proposals.json); nothing changes in the database
+Input: messages as dicts {id, date, from, subject, body} -- from data/mail/messages.json (exported from the
+mailbox, or written by hand), a folder of .eml files, or IMAP (read-only, same settings as email_alerts). Output: PROPOSED status changes (data/mail/proposals.json); nothing changes in the database
 until the user confirms them in the interface ("📬 Depuis tes e-mails") or runs --apply.
 
     python -m fitly.tracking.mail_tracker --json data/mail/messages.json  # analyse, write proposals

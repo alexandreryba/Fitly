@@ -127,11 +127,10 @@ defaults and at temporary databases, and the scoring regression tests use a froz
 
 ## How it was built
 
-Fitly was developed with [Claude Code](https://claude.com/claude-code), Anthropic's coding agent, as a pair
-programmer: much of the code was written through it. The author defined the product and its rules (a human
-submits every application, public sources only, data stays local), made the design decisions, reviewed the
-changes and has used Fitly every day for a real job search; the test suite and the CI were built alongside
-the code so that every change is checked.
+Fitly was built with Claude Code, an AI coding assistant, used as a pair programmer. The author designed the
+product and its rules (a human submits every application, public sources only, data stays local), made the
+technical decisions, reviewed the changes and uses Fitly for a real job search. The test suite and the CI
+check every change.
 
 ## License
 

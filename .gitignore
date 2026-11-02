@@ -28,6 +28,5 @@ Mes offres.xlsx
 .env*
 identifiants.json
 
-# Local tooling and logs
-.claude/
+# Logs
 *.log
