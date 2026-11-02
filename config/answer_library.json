@@ -1,0 +1,15 @@
+{
+  "_comment": "Your answers for application forms go in config/local/answer_library.json (the interface, tab Mes infos, writes it). Fill ONLY true, validated values: an empty required field stops the pre-fill on that field.",
+  "first_name": "",
+  "last_name": "",
+  "full_name": "",
+  "email": "",
+  "phone": "",
+  "linkedin": "",
+  "location": "",
+  "salary_expectation": "",
+  "notice_period": "",
+  "years_experience": "",
+  "work_authorization": "",
+  "sponsorship": ""
+}

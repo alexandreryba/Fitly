@@ -1,0 +1,50 @@
+{
+  "_comment": "Example. Employer job boards are personal: add them with `python -m fitly probe \"Company\" --add`, which saves the list in config/local/ats_sources.json (never versioned). Format of an employer entry: {\"type\": \"lever\", \"site_name\": \"acme\", \"company\": \"Acme\"} (greenhouse: \"board_token\"; teamtailor, recruitee, ashby, smartrecruiters, workable: \"site_name\" or \"board\").",
+  "sources": [
+    {
+      "type": "adzuna",
+      "enabled": "auto",
+      "keywords": [
+        "data engineer",
+        "data scientist",
+        "machine learning engineer"
+      ],
+      "where": "Paris",
+      "max_days_old": 21,
+      "_cle": "ADZUNA_APP_ID + ADZUNA_APP_KEY (gratuit, developer.adzuna.com)"
+    },
+    {
+      "type": "jooble",
+      "enabled": "auto",
+      "keywords": [
+        "data engineer",
+        "data scientist",
+        "machine learning engineer"
+      ],
+      "where": "Paris, France",
+      "_cle": "JOOBLE_API_KEY (gratuit, jooble.org/api/about)"
+    },
+    {
+      "type": "google_jobs",
+      "enabled": "auto",
+      "keywords": [
+        "data engineer",
+        "data scientist",
+        "machine learning engineer"
+      ],
+      "max_searches": 3,
+      "_cle": "SERPAPI_KEY (100 recherches/mois gratuites, serpapi.com) — 3 recherches par collecte max",
+      "_rotation": "3 recherches par collecte, en commençant chaque jour par un mot-clé différent"
+    },
+    {
+      "type": "france_travail",
+      "enabled": "auto",
+      "keywords": [
+        "data engineer",
+        "data scientist",
+        "machine learning engineer"
+      ],
+      "_cle": "FT_CLIENT_ID + FT_CLIENT_SECRET (gratuit, francetravail.io)"
+    }
+  ]
+}

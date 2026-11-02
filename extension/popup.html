@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: Segoe UI, Arial, sans-serif; width: 320px; margin: 12px; color: #1f2937; }
+    h1 { font-size: 15px; margin: 0 0 8px; }
+    button { width: 100%; padding: 10px; font-size: 14px; border: 0; border-radius: 6px; background: #2563eb; color: #fff; cursor: pointer; }
+    button:disabled { background: #9ca3af; cursor: default; }
+    #status { margin-top: 10px; font-size: 13px; line-height: 1.4; }
+    .ok { color: #166534; } .err { color: #b91c1c; }
+    li { margin: 2px 0; }
+    small { color: #6b7280; }
+  </style>
+</head>
+<body>
+  <h1>🧭 Fitly</h1>
+  <button id="fill" style="background:#16a34a;margin-bottom:8px">✍️ Pré-remplir cette page</button>
+  <p style="margin:0 0 10px"><small>Ouvre le formulaire (« Postuler »…), puis clique ici ou fais <b>Alt+Maj+P</b>.
+  À refaire à chaque étape d'un formulaire en plusieurs pages. Rien n'est envoyé.</small></p>
+  <button id="capture">Ajouter cette page à Fitly</button>
+  <div id="status"></div>
+  <p><small>Fonctionne sur une offre (LinkedIn, Indeed, Welcome to the Jungle, HelloWork, APEC, Cadremploi…)
+  ou sur une page de résultats de recherche. Fitly doit être ouvert sur ton PC.</small></p>
+  <script src="popup.js"></script>
+</body>
+</html>

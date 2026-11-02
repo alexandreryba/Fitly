@@ -1,0 +1,9 @@
+{
+  "enabled": false,
+  "model": "claude-opus-5-5",
+  "effort": "low",
+  "max_tokens": 8000,
+  "monthly_cap_eur": 10.0,
+  "usd_to_eur": 0.92,
+  "_comment": "Credentials: set ANTHROPIC_API_KEY in your environment (never in this file). Cheaper option: model claude-haiku-5-5."
+}

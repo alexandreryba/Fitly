@@ -1,0 +1,32 @@
+# Environment / caches
+.venv/
+__pycache__/
+*.pyc
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.ruff_cache/
+
+# ---------------------------------------------------------------------------------------------------------
+# Personal data: never committed. Everything below stays on your computer.
+# ---------------------------------------------------------------------------------------------------------
+# Database, review files, inbox e-mails, AI drafts, browser profile, logs
+data/
+backups/
+# Your settings: profile, preferences (excluded companies...), form answers, facts for the AI, sources added
+config/local/
+config/*.bak
+# CVs (only the naming instructions are versioned)
+cvs/*
+!cvs/LISEZMOI.txt
+# Offers saved by hand
+Mes offres.xlsx
+# Credentials of any kind
+*.env
+.env*
+identifiants.json
+
+# Local tooling and logs
+.claude/
+*.log

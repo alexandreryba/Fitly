@@ -1,0 +1,23 @@
+{
+  "final_submit": "human_only",
+  "captcha": "stop",
+  "anti_bot": "stop",
+  "unknown_required_question": "leave_to_human",
+  "unvalidated_answer": "stop",
+  "follow_up_days": 7,
+  "max_follow_ups": 2,
+  "company_window_days": 90,
+  "_unknown_required_question": "leave_to_human: fill validated fields and list required questions for you; stop: fill nothing when a required question is unknown. Never submits either way.",
+  "max_offers_per_company": 5,
+  "max_distinct_roles_per_company": 3,
+  "daily_selection": {
+    "size": 10,
+    "min_score": 55,
+    "max_age_days": 14,
+    "batch_size": 10
+  },
+  "tick_required_consents": false,
+  "_tick_required_consents": "false (default): consent and terms boxes are left to you and listed with what remains to do. true: tick the boxes the form marks as required (policy/terms acknowledgement); never newsletter/marketing/future-opportunity boxes.",
+  "prefill_mode": "chrome_tab",
+  "_prefill_mode": "chrome_tab: new tabs in your own Chrome, filled by the Fitly extension; window: separate Chrome window driven by Playwright."
+}

@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><title>EXERCICE — Formulaire de candidature fictif</title>
+<style>
+  body{font-family:Arial,sans-serif;max-width:720px;margin:30px auto;padding:0 16px;color:#222}
+  .banner{background:#fff3cd;border:2px solid #e0a800;padding:12px;border-radius:6px;margin-bottom:20px}
+  label{display:block;margin-top:14px;font-weight:bold}
+  input[type=text],input[type=email],input[type=tel],input[type=url],textarea,select{width:100%;padding:8px;margin-top:4px;box-sizing:border-box}
+  button{margin-top:24px;padding:12px 24px;font-size:16px;background:#2563eb;color:#fff;border:0;border-radius:6px}
+  #done{display:none;background:#dcfce7;border:2px solid #16a34a;padding:16px;margin-top:20px;border-radius:6px}
+</style></head>
+<body>
+<div class="banner"><b>EXERCICE — formulaire fictif stocké sur ton PC.</b> Aucune connexion internet, aucune entreprise réelle.
+Même si tu cliques sur « Submit application », rien n'est envoyé nulle part.</div>
+<h1>DemoCorp — Analytics Engineer (Paris) — variante « question obligatoire inconnue »</h1>
+<form id="f" onsubmit="document.getElementById('done').style.display='block'; return false;">
+  <input type="hidden" name="csrf_token" value="demo">
+  <label for="fn">First Name *</label><input type="text" id="fn" name="job_application[first_name]" required>
+  <label for="ln">Last Name *</label><input type="text" id="ln" name="job_application[last_name]" required>
+  <label for="em">Email *</label><input type="email" id="em" name="job_application[email]" required>
+  <label for="ph">Phone</label><input type="tel" id="ph" name="job_application[phone]">
+  <label for="cv">Resume/CV *</label><input type="file" id="cv" name="resume" required>
+  <label for="li">LinkedIn Profile</label><input type="url" id="li" name="q_linkedin">
+  <label for="hear">How did you hear about us?</label><input type="text" id="hear" name="q_hear">
+  <label for="why">Why do you want to join DemoCorp? *</label><textarea id="why" name="q_why" rows="4" required></textarea>
+  <label><input type="checkbox" id="consent" name="gdpr" required> I agree to the privacy policy *</label>
+  <button type="submit" id="submit">Submit application</button>
+</form>
+<div id="done"><b>CECI EST UN EXERCICE — rien n'a été envoyé.</b> Sur un vrai site, c'est ce clic que toi seul fais.</div>
+</body></html>

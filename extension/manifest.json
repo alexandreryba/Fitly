@@ -1,0 +1,43 @@
+{
+  "manifest_version": 3,
+  "name": "Fitly",
+  "version": "1.1.0",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA4HaNf9sajYI6aTqhi22vEdPmU/4QhG9RU3QqhNZo+mMs8Lw780aY5qSUp+jMTxifPpG4HjZ8EZQsBC1gCR7PxHQaHtcIkcuGYesPw6rtnpQMQ06stnOXRRo3ukeB/q7Ozdk0d2jE6B9t+Z1NnTHj+Rr5MRnGRf4cF9NAMsxKUJ6RkpmUn5fecK8hIETKfLl76iYMmza4zE1PTK0y8aYjvTCxPn9HaPR7UbEPJcK/UZZcmPeLNXeEfe1lZxw+OQP5h/7H1PJ1ix3O+1YsgoxEBRLXuGAW81yoTRCkxSEzWW43eFBitpflhnmEx8VFzDhLMGqj35kEJdrKPtgZW0dteQIDAQAB",
+  "description": "Pré-remplit les formulaires de candidature : automatiquement dans les onglets ouverts par Fitly, et en un clic (bouton ou Alt+Maj+P) sur n'importe quelle page de candidature. Ajoute aussi à Fitly les offres de la page consultée (sur clic). N'envoie jamais de candidature ; ne communique qu'avec ton PC.",
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage"
+  ],
+  "host_permissions": [
+    "http://127.0.0.1:8765/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "http://*/*",
+        "https://*/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_idle",
+      "all_frames": true
+    }
+  ],
+  "action": {
+    "default_title": "Ajouter à Fitly",
+    "default_popup": "popup.html"
+  },
+  "commands": {
+    "manual-fill": {
+      "suggested_key": {
+        "default": "Alt+Shift+P"
+      },
+      "description": "Pré-remplir le formulaire de cette page"
+    }
+  }
+}
