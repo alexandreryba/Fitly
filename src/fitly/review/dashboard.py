@@ -1,11 +1,12 @@
 """Plain-text dashboard for the terminal (`fitly dashboard`): best offers and follow-ups due."""
 
 from datetime import UTC, datetime
+from typing import Any
 
 from fitly.storage import connect
 
 
-def get_dashboard(limit=25, db_path=None):
+def get_dashboard(limit=25, db_path=None) -> dict[str, Any]:
     c = connect(db_path)
     jobs = c.execute(
         """
@@ -28,14 +29,14 @@ def get_dashboard(limit=25, db_path=None):
     """,
         (datetime.now(UTC).isoformat(),),
     ).fetchall()
-    counts = {}
+    counts: dict[str, int] = {}
     for row in c.execute("SELECT status, COUNT(*) n FROM applications GROUP BY status"):
         counts[row["status"]] = row["n"]
     c.close()
     return {"jobs": [dict(x) for x in jobs], "followups": [dict(x) for x in due], "counts": counts}
 
 
-def render_text(limit=25, db_path=None):
+def render_text(limit=25, db_path=None) -> str:
     d = get_dashboard(limit, db_path)
     lines = ["FITLY DASHBOARD", "=" * 72, ""]
     lines.append("APPLICATIONS: " + (", ".join(f"{k}={v}" for k, v in sorted(d["counts"].items())) or "none"))

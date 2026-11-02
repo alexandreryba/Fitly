@@ -8,6 +8,7 @@ anti-bot pages and on unknown required questions. Nothing here ever submits a fo
 from __future__ import annotations
 
 import re
+from typing import Any
 
 CAPTCHA_PATTERNS = [
     r"captcha",
@@ -125,7 +126,7 @@ _CAPTCHA_NOTICE = re.compile(
 )
 
 
-def detect_blockers(text):
+def detect_blockers(text) -> str | None:
     low = _CAPTCHA_NOTICE.sub(" ", (text or "").lower())
     if any(re.search(p, low) for p in CAPTCHA_PATTERNS):
         return "captcha"
@@ -134,7 +135,7 @@ def detect_blockers(text):
     return None
 
 
-def classify_field(label):
+def classify_field(label) -> str | None:
     low = _norm_label(label)
     if any(h in low for h in HUMAN_ONLY):
         return "human_only"
@@ -159,7 +160,7 @@ def classify_field(label):
     return None
 
 
-def with_derived(answers):
+def with_derived(answers) -> dict[str, Any]:
     """Fill obvious derived values (full name from first + last) without inventing anything."""
     out = dict(answers or {})
     if not out.get("full_name") and out.get("first_name") and out.get("last_name"):
@@ -189,7 +190,7 @@ MARKETING = re.compile(
 _REQUIRED_MARK = re.compile(r"\b(requis|required|obligatoire|mandatory)\b|\*", re.I)
 
 
-def consent_checkbox(field):
+def consent_checkbox(field) -> str | None:
     """'tick' for a required acknowledgement/consent box, 'never' for subscription boxes, None otherwise."""
     label = str(field.get("label") or "") + " " + str(field.get("option") or "")
     if MARKETING.search(label):
@@ -234,7 +235,7 @@ AUTOCOMPLETE_TYPES = {
 PERSONAL_KEYS = set(GOOGLE_TYPES.values()) | {"linkedin"}
 
 
-def field_key(field):
+def field_key(field) -> str | None:
     """Our label rules, refined by Google's/the page's own field type for personal data."""
     key = classify_field(field.get("label", ""))
     if key == "human_only" or (key and key not in PERSONAL_KEYS):
@@ -250,14 +251,14 @@ _GENERIC_UPLOAD = re.compile(
 )
 
 
-def build_fill_plan(fields, answers, tick_consents=False):
+def build_fill_plan(fields, answers, tick_consents=False) -> dict[str, list[dict[str, Any]]]:
     """plan: validated values to fill; unknown: blocking (required) gaps;
     skipped: optional fields left empty; human: fields the user must handle personally."""
-    plan = []
-    unknown = []
-    skipped = []
-    human = []
-    radio_groups = {}
+    plan: list[dict[str, Any]] = []
+    unknown: list[dict[str, Any]] = []
+    skipped: list[dict[str, Any]] = []
+    human: list[dict[str, Any]] = []
+    radio_groups: dict[str, list[dict[str, Any]]] = {}
     for f in fields:
         if f.get("type") == "radio":
             radio_groups.setdefault(f.get("name") or f.get("label"), []).append(f)
@@ -308,7 +309,7 @@ def build_fill_plan(fields, answers, tick_consents=False):
     return {"plan": plan, "unknown": unknown, "skipped": skipped, "human": human}
 
 
-def gate_session(page_text, fields, answers, unknown_required="stop", tick_consents=False):
+def gate_session(page_text, fields, answers, unknown_required="stop", tick_consents=False) -> dict[str, Any]:
     """unknown_required: 'stop' (fill nothing if a required question is unknown) or
     'leave_to_human' (fill the validated fields, list the required ones the user must answer).
     CAPTCHA / anti-bot always stop. Submission is never allowed."""

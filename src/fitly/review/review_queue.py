@@ -3,6 +3,7 @@
 import json
 from datetime import UTC
 from pathlib import Path
+from typing import Any
 
 from fitly import config, paths
 from fitly.storage import connect
@@ -25,7 +26,7 @@ LABELS = {
 }
 
 
-def explain(details):
+def explain(details) -> str:
     """'Data Engineer | role +47, skills +12, loc +15, seniority -10' from the stored JSON."""
     try:
         d = json.loads(details or "")
@@ -39,7 +40,7 @@ def explain(details):
     return f"{d.get('matched_role') or '-'} | {', '.join(parts)}"
 
 
-def human_action(d):
+def human_action(d) -> str:
     status = d["application_status"]
     if status == "go":
         return "prepare_application"
@@ -65,7 +66,7 @@ SEARCH_SOURCES = ("google_jobs", "jooble", "adzuna", "france_travail")
 SEARCH_STALE_DAYS = 14
 
 
-def freshness(d, last_run, seen_companies):
+def freshness(d, last_run, seen_companies) -> str:
     """'new' (first seen in the latest run), 'closed?' (company re-collected without it) or ''.
 
     upsert_jobs stamps every offer of one run with the same timestamp, so the
@@ -88,7 +89,7 @@ def _company_key(name):
     return " ".join(re.sub(r"[^a-z0-9]+", " ", t).split())
 
 
-def excluded_companies(path=None):
+def excluded_companies(path=None) -> list[str]:
     try:
         return [
             c
@@ -101,7 +102,7 @@ def excluded_companies(path=None):
         return []
 
 
-def is_excluded(company, names):
+def is_excluded(company, names) -> bool:
     """'Acme Partners France' matches 'Acme Partners'; 'BluePoint' matches 'Blue Point'.
     'Globex' does NOT match 'Globex Consulting' (list each entity to exclude)."""
     c = _company_key(company)
@@ -118,7 +119,7 @@ def is_excluded(company, names):
     return False
 
 
-def build(db=None, include_closed=False):
+def build(db=None, include_closed=False) -> list[dict[str, Any]]:
     db = paths.db_path(db)
     con = connect(str(db))
     last_run = con.execute(
@@ -177,7 +178,7 @@ def build(db=None, include_closed=False):
     return company_quota.apply(queue, str(db))
 
 
-def main(db=None, out=OUT):
+def main(db=None, out=OUT) -> int:
     queue = build(db)
     Path(out).write_text(json.dumps(queue, ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"{len(queue)} jobs -> {out}")

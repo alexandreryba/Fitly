@@ -21,7 +21,7 @@ def _cv_file(cv_id):
     return None, False
 
 
-def render(d, ad, events):
+def render(d, ad, events) -> str:
     cv = ad.get("cv_type") or d.get("recommended_cv")
     cv_path, cv_ok = _cv_file(cv)
     years = _required_years(d.get("description"))
@@ -69,7 +69,7 @@ def render(d, ad, events):
 """
 
 
-def main(argv=None, db=None, out_dir=None):
+def main(argv=None, db=None, out_dir=None) -> int:
     argv = sys.argv[1:] if argv is None else argv
     if not argv:
         print("Usage: fitly pack JOB_ID")

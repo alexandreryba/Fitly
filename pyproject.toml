@@ -20,7 +20,7 @@ dependencies = [
 # Optional features: AI drafts (config/ai.json) and the Playwright pre-fill mode / form audit.
 ai = ["anthropic>=0.40"]
 browser = ["playwright>=1.45"]
-dev = ["fitly[ai,browser]", "pytest>=8", "ruff>=0.6"]
+dev = ["fitly[ai,browser]", "mypy>=1.11", "pytest>=8", "ruff>=0.6"]
 
 [project.scripts]
 fitly = "fitly.cli:main"
@@ -41,7 +41,8 @@ src = ["src", "tests"]
 extend-exclude = ["_archive", "backups", "data"]
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "I", "B", "UP", "SIM", "C4", "RUF"]
+# ANN201: public functions declare their return type (checked by mypy, see [tool.mypy]).
+select = ["E", "F", "W", "I", "B", "UP", "SIM", "C4", "RUF", "ANN201"]
 ignore = [
     "E501",    # long lines are left to the formatter
     "RUF001",  # French text: typographic apostrophes and non-breaking spaces are intended
@@ -52,7 +53,22 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 # Tests: imports after pytest.importorskip / environment setup, small lambdas and fakes are fine there.
-"tests/**" = ["E402", "E731", "B008", "RUF012"]
+"tests/**" = ["E402", "E731", "B008", "RUF012", "ANN201"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["fitly"]
+
+[tool.mypy]
+# Non-strict start: every function body is checked, public functions declare their return type (ruff ANN201),
+# parameters are annotated as the code is touched. Tighten (disallow_untyped_defs...) module by module later.
+python_version = "3.11"
+files = ["src/fitly"]
+check_untyped_defs = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_unused_configs = true
+
+[[tool.mypy.overrides]]
+# openpyxl ships no type information.
+module = ["openpyxl", "openpyxl.*"]
+ignore_missing_imports = true

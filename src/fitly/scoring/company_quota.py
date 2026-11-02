@@ -19,6 +19,7 @@ import re
 from datetime import UTC, datetime, timedelta
 from functools import lru_cache
 from pathlib import Path
+from typing import Any
 
 from fitly import config
 from fitly.scoring.novelty import norm
@@ -54,7 +55,7 @@ COMPATIBLE = [
 ]
 
 
-def family(title):
+def family(title) -> str:
     t = fold(title)
     for name, pattern in FAMILIES:
         if re.search(pattern, t):
@@ -99,7 +100,7 @@ def _family_cached(title):
     return family(title)
 
 
-def rules(path=None):
+def rules(path=None) -> dict[str, Any]:
     p = Path(path) if path else config.path("application_rules.json")
     try:
         data = json.loads(p.read_text(encoding="utf-8"))
@@ -141,7 +142,7 @@ def _role_patterns(preferences):
     return sorted(out, key=lambda x: x[2])
 
 
-def role_core(title, preferences=None):
+def role_core(title, preferences=None) -> str:
     """Same core = same job for a recruiter. Target-role phrase first, else the title without variant words.
 
     Exact phrase matching only (no fuzzy comparison): this runs for every offer on every screen refresh.
@@ -171,7 +172,7 @@ def _role_core(title, patterns):
     return " ".join(words) or t
 
 
-def engaged_by_company(db_path, window_days=90, now=None):
+def engaged_by_company(db_path, window_days=90, now=None) -> dict[str, list[dict[str, Any]]]:
     """{normalized company: [{job_id, title, status, family}]} of offers occupying a slot."""
     now = now or datetime.now(UTC)
     limit = (now - timedelta(days=window_days)).isoformat()
@@ -185,7 +186,7 @@ def engaged_by_company(db_path, window_days=90, now=None):
         ).fetchall()
     finally:
         con.close()
-    out = {}
+    out: dict[str, list[dict[str, Any]]] = {}
     for r in rows:
         when = r["applied_at"] or r["last_action_at"] or ""
         if r["status"] in CLOSED_RECENT and when < limit:
@@ -202,14 +203,14 @@ def engaged_by_company(db_path, window_days=90, now=None):
     return out
 
 
-def apply(queue, db_path, max_offers=None, max_roles=None, window_days=None):
+def apply(queue, db_path, max_offers=None, max_roles=None, window_days=None) -> list[dict[str, Any]]:
     """Annotate triage rows with quota='visible'|'reserve', a readable reason, family and role core."""
     cfg = rules()
     max_offers = cfg["max_offers_per_company"] if max_offers is None else max_offers
     max_roles = cfg["max_distinct_roles_per_company"] if max_roles is None else max_roles
     window_days = cfg["company_window_days"] if window_days is None else window_days
     engaged = engaged_by_company(db_path, window_days)
-    state = {}  # company -> {"count": n, "cores": {core,...}}
+    state: dict[str, dict[str, Any]] = {}  # company -> {"count": n, "cores": {core,...}}
     for key, items in engaged.items():
         state[key] = {"count": len(items), "cores": {e["core"] for e in items}, "engaged": len(items)}
     for r in sorted(
@@ -242,7 +243,7 @@ def apply(queue, db_path, max_offers=None, max_roles=None, window_days=None):
     return queue
 
 
-def coherence_warning(job_id, db_path, window_days=None):
+def coherence_warning(job_id, db_path, window_days=None) -> str | None:
     """Message when this offer's job family does not fit the other engaged offers at the same company."""
     window_days = rules()["company_window_days"] if window_days is None else window_days
     con = connect(db_path)

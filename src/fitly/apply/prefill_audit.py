@@ -15,17 +15,18 @@ import json
 import threading
 import time
 from collections import Counter
+from typing import Any
 from urllib.parse import urlparse
 
 from fitly import paths
 
 
-def diverse_selection(rows, n=50, min_score=40):
+def diverse_selection(rows, n=50, min_score=40) -> list[dict[str, Any]]:
     """Best offer of each company, direct employer pages only, alternating careers platforms (Lever,
     Greenhouse, Ashby, SmartRecruiters, Teamtailor...) so every platform is represented."""
     from fitly.sources import employer_match
 
-    best = {}
+    best: dict[str, dict[str, Any]] = {}
     for r in sorted(rows, key=lambda r: -(r.get("score") or 0)):
         if (
             (r.get("score") or 0) < min_score
@@ -34,10 +35,10 @@ def diverse_selection(rows, n=50, min_score=40):
         ):
             continue
         best.setdefault(r["company"].lower(), r)
-    by_platform = {}
+    by_platform: dict[str, list[dict[str, Any]]] = {}
     for r in best.values():
         by_platform.setdefault(r.get("source") or urlparse(r["url"]).netloc, []).append(r)
-    picked = []
+    picked: list[dict[str, Any]] = []
     while len(picked) < n and any(by_platform.values()):
         for plat in sorted(by_platform, key=lambda p: -len(by_platform[p])):
             if by_platform[plat] and len(picked) < n:
@@ -59,8 +60,10 @@ def diverse_selection(rows, n=50, min_score=40):
     return picked
 
 
-def audit_one(pw, target, wait=45):
+def audit_one(pw, target, wait=45) -> dict[str, Any]:
     """Open one offer, run content.js in dry-run mode, return its last report."""
+    from playwright.sync_api import Error as PlaywrightError
+
     from fitly.apply import capture_server
 
     # The extension API is simulated under private names (some sites redefine window.chrome).
@@ -113,20 +116,20 @@ def audit_one(pw, target, wait=45):
             from fitly.apply.launch_review import form_url
 
             page.goto(form_url(target["url"]), wait_until="domcontentloaded", timeout=30000)
-        except Exception as exc:
+        except PlaywrightError as exc:
             return {"status": "error", "reason": str(exc).splitlines()[0][:120]}
         end = time.time() + wait
         while time.time() < end and not state["done"]:
             for p in list(ctx.pages):
                 try:
                     pending = p.evaluate("() => (window.__jpQueue || []).splice(0)")
-                except Exception:
+                except PlaywrightError:  # page closed or navigating
                     continue
                 for item in pending:
                     answer = bridge(item["msg"])
                     try:
                         p.evaluate("([id, r]) => window.__jpResolve(id, r)", [item["id"], answer])
-                    except Exception:
+                    except PlaywrightError:
                         pass
             time.sleep(0.4)
             if (
@@ -139,7 +142,7 @@ def audit_one(pw, target, wait=45):
         shot.parent.mkdir(parents=True, exist_ok=True)
         try:
             ctx.pages[-1].screenshot(path=str(shot))
-        except Exception:
+        except (PlaywrightError, OSError, IndexError):  # IndexError: the site closed every page
             pass
         out = (
             dict(reports[-1])
@@ -152,7 +155,7 @@ def audit_one(pw, target, wait=45):
         browser.close()
 
 
-def run(targets, workers=3, wait=45, verbose=True):
+def run(targets, workers=3, wait=45, verbose=True) -> list[dict[str, Any]]:
     try:
         from playwright.sync_api import sync_playwright
     except ImportError:
@@ -169,7 +172,7 @@ def run(targets, workers=3, wait=45, verbose=True):
                     t = queue.pop(0)
                 try:
                     r = audit_one(pw, t, wait)
-                except Exception as exc:
+                except Exception as exc:  # deliberate: one offer's failure never stops the audit
                     r = {"status": "error", "reason": str(exc).splitlines()[0][:120]}
                 row = {
                     "job_id": t["id"],
@@ -209,7 +212,7 @@ def run(targets, workers=3, wait=45, verbose=True):
     return results
 
 
-def main():
+def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--n", type=int, default=50)
     ap.add_argument("--jobs", default="")

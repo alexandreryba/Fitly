@@ -10,6 +10,7 @@ import json
 import shutil
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import Any
 
 from fitly import config, paths
 from fitly.storage import connect, score_details
@@ -61,7 +62,7 @@ def _parse_date(value):
     return dt if dt.tzinfo else dt.replace(tzinfo=UTC)
 
 
-def rules(path=None):
+def rules(path=None) -> dict[str, int]:
     p = Path(path) if path else config.path("application_rules.json")
     data = json.loads(p.read_text(encoding="utf-8")) if p.exists() else {}
     return {"follow_up_days": int(data.get("follow_up_days", 7)), "max_follow_ups": int(data.get("max_follow_ups", 2))}
@@ -84,7 +85,7 @@ def _follow_up_count(con, job_id):
     ).fetchone()[0]
 
 
-def set_status(job_id, status, note=None, when=None, cv=None, db_path=None, rules_path=None):
+def set_status(job_id, status, note=None, when=None, cv=None, db_path=None, rules_path=None) -> dict[str, Any]:
     """Record a status change and (re)schedule the next follow-up when a reply is awaited."""
     if status not in STATUSES:
         raise ValueError(f"Unknown status '{status}'. Use one of: {', '.join(STATUSES)}")
@@ -139,7 +140,7 @@ def set_status(job_id, status, note=None, when=None, cv=None, db_path=None, rule
         con.close()
 
 
-def undo(job_id, db_path=None, backup=True):
+def undo(job_id, db_path=None, backup=True) -> dict[str, Any]:
     """Put an offer back to 'à trier': removes its decision/application and the related events
     (so a mistaken 'submitted' or time entry no longer counts in the statistics). DB backed up first."""
     if backup:
@@ -161,7 +162,7 @@ def undo(job_id, db_path=None, backup=True):
         con.close()
 
 
-def prior_applications(job_id, db_path=None, threshold=0.8):
+def prior_applications(job_id, db_path=None, threshold=0.8) -> list[dict[str, Any]]:
     """Applications already sent for the same company and a very similar title (other job ids).
 
     One offer = one application: callers must stop unless the user explicitly overrides.
@@ -189,7 +190,7 @@ def prior_applications(job_id, db_path=None, threshold=0.8):
     ]
 
 
-def parse_decision(value):
+def parse_decision(value) -> str | None:
     word = str(value or "").strip().lower()
     if word in GO_WORDS:
         return "go"
@@ -198,14 +199,14 @@ def parse_decision(value):
     return None
 
 
-def decide(job_id, decision, reason=None, db_path=None):
+def decide(job_id, decision, reason=None, db_path=None) -> dict[str, Any]:
     status = parse_decision(decision)
     if status is None:
         raise ValueError(f"Decision must be go/oui or no/non, got '{decision}'")
     return set_status(job_id, status, note=reason, db_path=db_path)
 
 
-def import_decisions(csv_path, db_path=None):
+def import_decisions(csv_path, db_path=None) -> dict[str, Any]:
     """Apply the 'decision' column of an edited review CSV (comma or semicolon separated)."""
     raw = Path(csv_path).read_bytes()
     try:
@@ -216,21 +217,21 @@ def import_decisions(csv_path, db_path=None):
         dialect = csv.Sniffer().sniff(text.splitlines()[0], delimiters=",;\t")
     except (csv.Error, IndexError):
         dialect = csv.excel
-    result = {"go": 0, "skipped": 0, "unchanged": 0, "protected": 0, "invalid": []}
+    result: dict[str, Any] = {"go": 0, "skipped": 0, "unchanged": 0, "protected": 0, "invalid": []}
     con = connect(db_path)
     current = {r["job_id"]: r["status"] for r in con.execute("SELECT job_id, status FROM applications")}
     con.close()
     for row in csv.DictReader(text.splitlines(), dialect=dialect):
-        raw = (row.get("decision") or "").strip()
-        if not raw:
+        cell = (row.get("decision") or "").strip()
+        if not cell:
             continue
-        status = parse_decision(raw)
+        status = parse_decision(cell)
         try:
             job_id = int(str(row.get("id") or "").strip())
         except ValueError:
             job_id = None
         if status is None or job_id is None:
-            result["invalid"].append({"id": row.get("id"), "decision": raw})
+            result["invalid"].append({"id": row.get("id"), "decision": cell})
             continue
         existing = current.get(job_id)
         if existing == status:
@@ -243,7 +244,7 @@ def import_decisions(csv_path, db_path=None):
     return result
 
 
-def pending_decisions(csv_path):
+def pending_decisions(csv_path) -> bool:
     """True if the review CSV holds at least one filled 'decision' cell."""
     p = Path(csv_path)
     if not p.exists():
@@ -263,7 +264,7 @@ def pending_decisions(csv_path):
     return any((row.get("decision") or "").strip() for row in csv.DictReader(lines, dialect=dialect))
 
 
-def due_followups(today=None, db_path=None, rules_path=None):
+def due_followups(today=None, db_path=None, rules_path=None) -> list[dict[str, Any]]:
     cfg = rules(rules_path)
     limit = _iso(_parse_date(today) if today else _now())
     con = connect(db_path)
@@ -291,7 +292,7 @@ def due_followups(today=None, db_path=None, rules_path=None):
         con.close()
 
 
-def followup_draft(item, sender_name=""):
+def followup_draft(item, sender_name="") -> str:
     """Plain follow-up template. The user completes and sends it themself."""
     lang = "en" if str(item.get("cv_type") or item.get("recommended_cv") or "").endswith("_en") else "fr"
     applied = str(item.get("applied_at") or "")[:10]
@@ -317,7 +318,7 @@ def followup_draft(item, sender_name=""):
     return f"<!-- {item.get('url') or ''} -->\n{body}"
 
 
-def write_followup_drafts(items, out_dir=None, sender_name=""):
+def write_followup_drafts(items, out_dir=None, sender_name="") -> list[Path]:
     out = Path(out_dir) if out_dir else paths.work_dir() / "followups"
     out.mkdir(parents=True, exist_ok=True)
     written = []
@@ -330,7 +331,7 @@ def write_followup_drafts(items, out_dir=None, sender_name=""):
     return written
 
 
-def backup_db(db_path=None, label="backup", keep=14):
+def backup_db(db_path=None, label="backup", keep=14) -> Path | None:
     """Copy the database to backups/db/, keeping the `keep` most recent copies per label."""
     src = paths.project_path(paths.db_path(db_path))
     if not src.exists():
@@ -345,7 +346,7 @@ def backup_db(db_path=None, label="backup", keep=14):
     return dest
 
 
-def rescore(preferences, profile, cv_profiles, db_path=None, backup=True):
+def rescore(preferences, profile, cv_profiles, db_path=None, backup=True) -> dict[str, Any]:
     """Recompute score/band/CV/explanation for every stored job, without network access.
 
     Rows are updated in place by id: no insertion, no merge, applications untouched.

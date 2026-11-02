@@ -14,6 +14,7 @@ import hashlib
 import re
 from datetime import date, datetime, timedelta
 from pathlib import Path
+from typing import Any
 
 from fitly import config, paths
 
@@ -45,12 +46,12 @@ UNITS = {
 }
 
 
-def create_template(path=None):
+def create_template(path=None) -> Path:
     from openpyxl import Workbook
     from openpyxl.styles import Font, PatternFill
     from openpyxl.utils import get_column_letter
 
-    path = path or FILE
+    path = Path(path or FILE)
     wb = Workbook()
     ws = wb.active
     ws.title = "Mes offres"
@@ -104,7 +105,7 @@ def _date(value, today=None):
     return ""
 
 
-def read(path=None):
+def read(path=None) -> tuple[list[dict[str, Any]], list[str]]:
     """Valid offers of the file (example line and incomplete lines skipped). Returns (jobs, problems)."""
     from openpyxl import load_workbook
 
@@ -126,7 +127,8 @@ def read(path=None):
             zip(("collected", "company", "title", "location", "published", "url", "notes"), HEADERS, strict=False)
         )
     }
-    jobs, problems = [], []
+    jobs: list[dict[str, Any]] = []
+    problems: list[str] = []
     for n, r in enumerate(rows[1:], start=2):
 
         def get(k, r=r):
@@ -156,7 +158,7 @@ def read(path=None):
     return jobs, problems
 
 
-def import_file(path=None, db_path=None):
+def import_file(path=None, db_path=None) -> dict[str, Any]:
     """Score and store the offers of the file. Returns {read, new, problems}."""
     from fitly.scoring.pipeline import run_pipeline
     from fitly.storage import connect, upsert_jobs
@@ -176,7 +178,7 @@ def import_file(path=None, db_path=None):
     return {"read": len(jobs), "new": after - before, "problems": problems}
 
 
-def live_status(db_path=None, report=None):
+def live_status(db_path=None, report=None) -> dict[str, Any]:
     """For the Sources panel, computed at every page load: lines in the file, offers in Fitly coming from it
     (relevant ones too), and whether the last morning collection read the file."""
     from fitly.storage import connect
@@ -184,7 +186,7 @@ def live_status(db_path=None, report=None):
     db_path = paths.db_path(db_path)
     try:
         lines, problems = read()
-    except Exception:
+    except Exception:  # deliberate: a hand-edited workbook fails in many ways (locked by Excel, truncated, not .xlsx)
         lines, problems = [], ["fichier illisible (ouvert dans Excel ?)"]
     con = connect(db_path)
     try:

@@ -12,6 +12,7 @@ from __future__ import annotations
 import re
 import unicodedata
 from difflib import SequenceMatcher
+from typing import Any
 
 from fitly.scoring.novelty import JobIndex
 
@@ -60,7 +61,7 @@ def _title_for_matching(title):
 
 
 def _roles(preferences):
-    roles = []
+    roles: list[tuple[str, int]] = []
     for key, values in (preferences.get("roles") or {}).items():
         m = re.search(r"(\d+)", key)
         priority = int(m.group(1)) if m else 99
@@ -341,7 +342,7 @@ def _track_by_keywords(job, track, cvs):
             hits[c["track"]] = _keyword_hits(text, c["keywords"])
     if not hits:
         return track
-    best = max(hits, key=hits.get)
+    best = max(hits, key=lambda t: hits[t])
     return best if hits[best] >= hits.get(track, 0) + KEYWORD_MARGIN else track
 
 
@@ -371,7 +372,7 @@ def _band(score):
     )
 
 
-def run_pipeline(jobs, preferences, profile, cv_profiles):
+def run_pipeline(jobs, preferences, profile, cv_profiles) -> list[dict[str, Any]]:
     """Score every offer once; the same posting from several sources is kept once, with the richest text."""
     unique = JobIndex()
     for raw in jobs:

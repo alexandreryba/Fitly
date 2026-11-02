@@ -18,6 +18,7 @@ import unicodedata
 from datetime import UTC, datetime
 from email.utils import parseaddr, parsedate_to_datetime
 from pathlib import Path
+from typing import Any, cast
 
 from fitly import paths
 from fitly.storage import connect
@@ -86,7 +87,7 @@ def _fold(t):
     return " ".join(re.sub(r"[^a-z0-9]+", " ", t).split())
 
 
-def classify(msg):
+def classify(msg) -> str | None:
     """'rejected' / 'interview' / 'submitted' / None. A rejection wins (it often thanks you for applying too)."""
     text = f"{msg.get('subject', '')}\n{msg.get('body', '')}"[:20000]
     if REJECTED.search(text):
@@ -106,7 +107,7 @@ def classify(msg):
     return None
 
 
-def company_hint(msg):
+def company_hint(msg) -> str:
     subject = re.sub(r"^(re|tr|fwd?)\s*:\s*", "", str(msg.get("subject") or ""), flags=re.I).strip()
     for rx in SUBJECT_COMPANY:
         m = rx.search(subject)
@@ -122,7 +123,7 @@ def company_hint(msg):
     return domain[-2] if len(domain) >= 2 and not any(a in addr for a in ATS_SENDERS) else ""
 
 
-def match_job(con, msg, hint):
+def match_job(con, msg, hint) -> dict[str, Any] | None:
     """Best known offer for this message: same company (name in sender/subject/body), closest title."""
     blob = _fold(f"{msg.get('from', '')} {msg.get('subject', '')} {str(msg.get('body', ''))[:4000]}")
     hint_f = _fold(hint)
@@ -160,7 +161,7 @@ def _date(msg):
         return datetime.now(UTC).date().isoformat()
 
 
-def analyse(messages, db_path=None):
+def analyse(messages, db_path=None) -> list[dict[str, Any]]:
     """Proposed updates, oldest first, one per (job, status); never a downgrade (interview -> submitted)."""
     db_path = paths.db_path(db_path)
     con = connect(db_path)
@@ -197,7 +198,7 @@ def analyse(messages, db_path=None):
     return out
 
 
-def apply(proposals, db_path=None):
+def apply(proposals, db_path=None) -> int:
     """Apply confirmed proposals. Offers unknown to Fitly (applied elsewhere) are created as source 'email'."""
     from fitly.storage import upsert_jobs
     from fitly.tracking import tracker
@@ -245,14 +246,14 @@ def apply(proposals, db_path=None):
 
 
 # --- message sources -----------------------------------------------------------------------------------
-def from_eml_folder(folder):
+def from_eml_folder(folder) -> list[dict[str, Any]]:
     out = []
     for f in sorted(Path(folder).glob("*.eml")):
         m = email.message_from_bytes(f.read_bytes())
         body = ""
         for part in m.walk() if m.is_multipart() else [m]:
             if part.get_content_type() in ("text/plain", "text/html") and not body:
-                payload = part.get_payload(decode=True) or b""
+                payload = cast(bytes, part.get_payload(decode=True) or b"")  # decode=True on a leaf part: bytes
                 body = re.sub(r"<[^>]+>", " ", payload.decode(part.get_content_charset() or "utf-8", "ignore"))
         out.append(
             {"id": f.name, "date": m.get("Date"), "from": m.get("From"), "subject": m.get("Subject"), "body": body}
@@ -260,12 +261,12 @@ def from_eml_folder(folder):
     return out
 
 
-def proposals_path(db_path=None):
+def proposals_path(db_path=None) -> Path:
     db_path = paths.db_path(db_path)
     return Path(db_path).parent / "mail" / "proposals.json"
 
 
-def main():
+def main() -> int:
     import argparse
 
     ap = argparse.ArgumentParser(description="Suivi des candidatures depuis tes e-mails (propositions à valider)")
