@@ -34,13 +34,13 @@ def _print(obj):
 
 
 # --- daily loop ----------------------------------------------------------------------------------------
-def cmd_morning(a):
+def cmd_morning(a) -> int:
     from fitly import morning
 
     return morning.main([])
 
 
-def cmd_review(a, import_first=True):
+def cmd_review(a, import_first=True) -> int:
     from fitly.review import export_review, report_html, review_queue
     from fitly.tracking.tracker import import_decisions, pending_decisions
 
@@ -58,21 +58,21 @@ def cmd_review(a, import_first=True):
     return 0
 
 
-def cmd_rescore(a):
+def cmd_rescore(a) -> int:
     from fitly.tracking.tracker import rescore
 
     _print(rescore(*config.scoring_inputs(), db_path=paths.db_path()))
     return cmd_review(a) if a.review else 0
 
 
-def cmd_decide(a):
+def cmd_decide(a) -> int:
     from fitly.tracking.tracker import decide
 
     _print(decide(a.job_id, a.decision, reason=a.note, db_path=paths.db_path()))
     return 0
 
 
-def cmd_decisions(a):
+def cmd_decisions(a) -> int:
     from fitly.tracking.tracker import import_decisions
 
     result = import_decisions(a.csv or paths.work_dir() / "review_queue.csv", db_path=paths.db_path())
@@ -82,21 +82,21 @@ def cmd_decisions(a):
     return 1 if result["invalid"] else 0
 
 
-def cmd_undo(a):
+def cmd_undo(a) -> int:
     from fitly.tracking.tracker import undo
 
     _print(undo(a.job_id, db_path=paths.db_path()))
     return 0
 
 
-def cmd_set(a):
+def cmd_set(a) -> int:
     from fitly.tracking.tracker import set_status
 
     _print(set_status(a.job_id, a.status, note=a.note, when=a.date, cv=a.cv, db_path=paths.db_path()))
     return 0
 
 
-def cmd_applied(a):
+def cmd_applied(a) -> int:
     from fitly.review.kpis import log_effort
     from fitly.tracking.tracker import prior_applications, set_status
 
@@ -113,7 +113,7 @@ def cmd_applied(a):
     return 0
 
 
-def cmd_followups(a):
+def cmd_followups(a) -> int:
     from fitly.tracking.tracker import due_followups, write_followup_drafts
 
     items = due_followups(today=a.date, db_path=paths.db_path())
@@ -136,7 +136,7 @@ def cmd_followups(a):
 
 
 # --- views -----------------------------------------------------------------------------------------------
-def cmd_status(a):
+def cmd_status(a) -> int:
     from fitly.storage import connect
 
     con = connect(paths.db_path())
@@ -157,14 +157,14 @@ def cmd_status(a):
     return 0
 
 
-def cmd_dashboard(a):
+def cmd_dashboard(a) -> int:
     from fitly.review import dashboard
 
     print(dashboard.render_text(db_path=paths.db_path()))
     return 0
 
 
-def cmd_metrics(a):
+def cmd_metrics(a) -> int:
     from fitly.review.kpis import RELEVANT, compute
 
     k = compute(paths.db_path())
@@ -190,7 +190,7 @@ def cmd_metrics(a):
     return 0
 
 
-def cmd_pack(a):
+def cmd_pack(a) -> int:
     from fitly.apply import candidate_pack
 
     return candidate_pack.main([str(a.job_id)])
@@ -201,13 +201,13 @@ def _board(item):
     return item.get("board_token") or item.get("site_name") or item.get("board") or ",".join(item.get("keywords") or [])
 
 
-def cmd_sources(a):
+def cmd_sources(a) -> int:
     for i, item in enumerate(config.load("ats_sources.json").get("sources", []), 1):
         print(f"{i:>2}. {item.get('type'):<16} {_board(item):<28} {item.get('company') or ''}")
     return 0
 
 
-def add_source(entry, path=None):
+def add_source(entry, path=None) -> bool:
     """Append a source to the user's sources file (previous version kept), unless the same type+board is there.
 
     Without `path`, the shared default is copied to config/local/ on first use: added companies stay personal.
@@ -225,7 +225,7 @@ def add_source(entry, path=None):
     return True
 
 
-def cmd_probe(a):
+def cmd_probe(a) -> int:
     from fitly.sources.ats_clients import probe
 
     found = probe(a.company)
@@ -243,7 +243,7 @@ def cmd_probe(a):
     return 0
 
 
-def cmd_check_sources(a):
+def cmd_check_sources(a) -> int:
     """Show which optional sources have their key, and (with --live) make one small real query each."""
     from fitly import user_env
     from fitly.sources import email_alerts
@@ -276,7 +276,7 @@ def cmd_check_sources(a):
 
 
 # --- assistance ----------------------------------------------------------------------------------------
-def cmd_answers(a):
+def cmd_answers(a) -> int:
     from fitly.apply import ai_answers
     from fitly.storage import connect
 
@@ -298,7 +298,7 @@ def cmd_answers(a):
     return 0
 
 
-def cmd_doctor(a):
+def cmd_doctor(a) -> int:
     """Settings files readable, database present, CV files declared in cv_profiles.json present."""
     ok = True
     print("FITLY DOCTOR")
@@ -320,7 +320,7 @@ def cmd_doctor(a):
 
 
 # --- parser ----------------------------------------------------------------------------------------------
-def build_parser():
+def build_parser() -> argparse.ArgumentParser:
     from fitly.tracking.tracker import STATUSES
 
     p = argparse.ArgumentParser(prog="fitly", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -379,7 +379,7 @@ def build_parser():
     return p
 
 
-def main(argv=None):
+def main(argv=None) -> int:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(errors="replace")  # emoji titles on cp1252 pipes
     a = build_parser().parse_args(argv)

@@ -2,6 +2,7 @@
 
 import re
 from html import unescape
+from typing import Any
 
 from fitly.sources.ats_clients import LISTERS, SEARCHERS, iso_date, list_france_travail
 from fitly.sources.greenhouse_client import list_jobs as greenhouse_list_jobs
@@ -15,10 +16,11 @@ def _plain(value):
     return re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", value)).strip()
 
 
-def collect_from_config(config, stats=None):
+def collect_from_config(config, stats=None) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """Collect every configured source. `stats` (a list), when given, receives one entry per source:
     {type, name, target, status: ok|empty|error|no_key|disabled, collected, error}."""
-    jobs, errors = [], []
+    jobs: list[dict[str, Any]] = []
+    errors: list[dict[str, Any]] = []
     for item in config.get("sources", []):
         kind = str(item.get("type", "")).lower()
         target = item.get("board_token") if kind == "greenhouse" else item.get("site_name") or item.get("board")
@@ -108,7 +110,7 @@ def collect_from_config(config, stats=None):
                 )
             entry["collected"] = len(jobs) - before
             entry["status"] = "ok" if entry["collected"] else "empty"
-        except Exception as exc:
+        except Exception as exc:  # deliberate: one failing source (network, API change, bad key) never stops the others
             # "enabled": "auto" = run only when the user's API key is configured; stay silent otherwise.
             if item.get("enabled") == "auto" and any(w in str(exc).lower() for w in ("not set", "missing")):
                 entry["status"] = "no_key"

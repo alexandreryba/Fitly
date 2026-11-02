@@ -41,7 +41,7 @@ PREP_NOTE = (
     " · préparation : les onglets s'affichent tour à tour le temps d'être remplis, puis retour au premier "
     "(laisse Chrome faire, ~10 s par offre)"
 )
-PREFILL_ICONS = {
+PREFILL_ICONS: dict[str | None, str] = {  # keyed by a report status, which may be missing
     "prefilled": "✅",
     "stopped": "⛔",
     "no_form": "⚠️",

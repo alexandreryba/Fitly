@@ -15,6 +15,7 @@ from __future__ import annotations
 import json
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 from fitly import config
 from fitly.paths import DATA_DIR
@@ -76,7 +77,7 @@ Rules:
 - gaps: requirements of the offer the candidate's facts do not cover (honest list, may be empty)."""
 
 
-def load_config(path=None):
+def load_config(path=None) -> dict[str, Any]:
     cfg = dict(DEFAULTS)
     try:
         cfg.update(json.loads(Path(path or config.path("ai.json")).read_text(encoding="utf-8")))
@@ -89,7 +90,7 @@ def _month():
     return datetime.now(UTC).strftime("%Y-%m")
 
 
-def spent_eur(ledger=LEDGER):
+def spent_eur(ledger=LEDGER) -> float:
     try:
         data = json.loads(Path(ledger).read_text(encoding="utf-8"))
     except (OSError, ValueError):
@@ -116,13 +117,13 @@ def _price(cfg, model):
     return table.get(model) or max(table.values(), key=lambda x: x[1])
 
 
-def worst_case_eur(cfg, prompt_chars):
+def worst_case_eur(cfg, prompt_chars) -> float:
     pin, pout = _price(cfg, cfg["model"])
     est_in = prompt_chars / 3.0 + 1500  # generous chars->tokens estimate + system/schema overhead
     return (est_in * pin + cfg["max_tokens"] * pout) / 1e6 * cfg["usd_to_eur"]
 
 
-def usage_eur(cfg, usage, model):
+def usage_eur(cfg, usage, model) -> float:
     pin, pout = _price(cfg, model)
     cached = getattr(usage, "cache_read_input_tokens", 0) or 0
     written = getattr(usage, "cache_creation_input_tokens", 0) or 0
@@ -132,7 +133,7 @@ def usage_eur(cfg, usage, model):
     return usd * cfg["usd_to_eur"]
 
 
-def candidate_block(profile, facts_path=None):
+def candidate_block(profile, facts_path=None) -> str:
     facts = ""
     try:
         facts = Path(facts_path or config.path("candidate_facts.md")).read_text(encoding="utf-8").strip()
@@ -148,7 +149,7 @@ def candidate_block(profile, facts_path=None):
     return "\n".join(lines)
 
 
-def build_prompt(job, profile, questions, language, facts_path=None):
+def build_prompt(job, profile, questions, language, facts_path=None) -> str:
     qs = "\n".join(f"- {q}" for q in questions) or "- (none)"
     return (
         f"LANGUAGE: {language}\n\nOFFER\nTitle: {job.get('title')}\nCompany: {job.get('company')}\n"
@@ -157,7 +158,7 @@ def build_prompt(job, profile, questions, language, facts_path=None):
     )
 
 
-def template_draft(job, profile, questions, language, reason):
+def template_draft(job, profile, questions, language, reason) -> dict[str, Any]:
     """No-AI fallback: honest skeleton the user completes."""
     fr = language == "fr"
     tc = "[À COMPLÉTER" if fr else "[TO COMPLETE"
@@ -189,7 +190,9 @@ def template_draft(job, profile, questions, language, reason):
     }
 
 
-def generate(job, profile, questions=(), language="fr", cfg=None, client=None, ledger=LEDGER, facts_path=None):
+def generate(
+    job, profile, questions=(), language="fr", cfg=None, client=None, ledger=LEDGER, facts_path=None
+) -> dict[str, Any]:
     """Return a draft dict. `client` may be injected (tests); otherwise anthropic.Anthropic() is used."""
     cfg = cfg or load_config()
     questions = [q for q in questions if q and q.strip()]
@@ -235,7 +238,7 @@ def generate(job, profile, questions=(), language="fr", cfg=None, client=None, l
             language,
             "No Anthropic credentials configured: set the ANTHROPIC_API_KEY environment variable",
         )
-    except Exception as exc:
+    except Exception as exc:  # deliberate: any other SDK or network failure still gives the user a template
         return template_draft(job, profile, questions, language, f"AI unavailable: {exc.__class__.__name__}")
     served_by = getattr(response, "model", cfg["model"]) or cfg["model"]
     _record(usage_eur(cfg, response.usage, served_by), served_by, ledger)
@@ -252,7 +255,7 @@ def generate(job, profile, questions=(), language="fr", cfg=None, client=None, l
     return draft
 
 
-def to_markdown(job, draft):
+def to_markdown(job, draft) -> str:
     lines = [
         f"# Réponses préparées — {job.get('company')} — {job.get('title')}",
         "",
@@ -282,7 +285,7 @@ def to_markdown(job, draft):
     return "\n".join(lines)
 
 
-def save(job_id, job, draft, out_dir=OUT_DIR):
+def save(job_id, job, draft, out_dir=OUT_DIR) -> Path:
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
     (out / f"answers_{job_id}.json").write_text(json.dumps(draft, ensure_ascii=False, indent=2), encoding="utf-8")

@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from datetime import date, datetime
 from pathlib import Path
+from typing import Any
 
 from fitly import paths
 
@@ -49,7 +50,7 @@ AVAIL_FR = {
 RELEVANT = 55
 
 
-def ago(day, today=None):
+def ago(day, today=None) -> str:
     """'today', '1 day ago', '3 days ago', '2 weeks ago', '5 months ago' (LinkedIn style)."""
     if not day:
         return ""
@@ -67,7 +68,7 @@ def ago(day, today=None):
     return "today"
 
 
-def rows(db_path=None):
+def rows(db_path=None) -> list[list[Any]]:
     from fitly.review import review_queue
     from fitly.ui.labels import source_label
 
@@ -95,7 +96,7 @@ def rows(db_path=None):
     return sorted(out, key=lambda x: (-x[7], x[0]), reverse=False)
 
 
-def write(path=None, db_path=None):
+def write(path=None, db_path=None) -> tuple[Path, int]:
     from openpyxl import Workbook
     from openpyxl.styles import Font, PatternFill
     from openpyxl.utils import get_column_letter

@@ -4,6 +4,8 @@ Two retries with a 45 s timeout: some boards answer slowly (about 1 MB of JSON) 
 source on the first timeout.
 """
 
+from typing import Any
+
 TIMEOUT = 45
 
 
@@ -13,11 +15,11 @@ def _get(url):
     return get_json(url, retries=2, timeout=TIMEOUT)
 
 
-def list_postings(site_name, eu=False, mode="json"):
+def list_postings(site_name, eu=False, mode="json") -> Any:
     host = "api.eu.lever.co" if eu else "api.lever.co"
     return _get(f"https://{host}/v0/postings/{site_name}?mode={mode}")
 
 
-def get_posting(site_name, posting_id, eu=False, mode="json"):
+def get_posting(site_name, posting_id, eu=False, mode="json") -> Any:
     host = "api.eu.lever.co" if eu else "api.lever.co"
     return _get(f"https://{host}/v0/postings/{site_name}/{posting_id}?mode={mode}")

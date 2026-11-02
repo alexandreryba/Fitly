@@ -11,7 +11,7 @@ import os
 import sys
 
 
-def get(name, default=None):
+def get(name, default=None) -> str | None:
     value = os.environ.get(name)
     if value:
         return value

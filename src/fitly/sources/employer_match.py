@@ -19,6 +19,7 @@ import re
 import unicodedata
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import Any
 from urllib.error import HTTPError
 from urllib.parse import urlparse
 from urllib.request import Request, urlopen
@@ -71,7 +72,7 @@ STOP = {
 }
 
 
-def is_relay(url, company=None):
+def is_relay(url, company=None) -> bool:
     """Not the employer's own page: a job board or aggregator (an open-ended list, so anything that is neither
     a careers software nor a domain with the company's name counts as a relay when the company is known)."""
     from fitly.sources.ats_clients import is_employer_link
@@ -93,14 +94,14 @@ def _tokens(text):
     return {w for w in re.sub(r"[^a-z0-9+#]+", " ", t).split() if w not in STOP and len(w) > 1}
 
 
-def title_similarity(a, b):
+def title_similarity(a, b) -> float:
     ta, tb = _tokens(a), _tokens(b)
     if not ta or not tb:
         return 0.0
     return len(ta & tb) / len(ta | tb)
 
 
-def best_match(job, postings, threshold=0.6):
+def best_match(job, postings, threshold=0.6) -> dict[str, Any] | None:
     """Posting of the same offer on the employer's board (same title words; same city when both are known)."""
     city = (job.get("location") or "").split(",")[0].strip().lower()
     scored = []
@@ -131,7 +132,7 @@ def _configured_boards():
         cfg = config.load("ats_sources.json")
     except (OSError, ValueError):
         return {}
-    out = {}
+    out: dict[str, list[dict[str, Any]]] = {}
     for s in cfg.get("sources", []):
         board = s.get("board_token") or s.get("site_name") or s.get("board")
         if board and s.get("company") and s.get("type") not in ("google_jobs", "jooble", "adzuna", "france_travail"):
@@ -139,7 +140,7 @@ def _configured_boards():
     return out
 
 
-def boards_for(company, cache, prober=probe):
+def boards_for(company, cache, prober=probe) -> list[dict[str, Any]]:
     key = str(company or "").strip().lower()
     if not key:
         return []
@@ -157,7 +158,7 @@ def boards_for(company, cache, prober=probe):
             for b in prober(company)
             if len(words) < 2 or b["board"].lower() != words[0]
         ]
-    except Exception:
+    except Exception:  # deliberate: network probe of boards that may not exist; none found is the safe answer
         boards = []
     cache[key] = {"boards": boards, "at": _now().isoformat(timespec="seconds")}
     return boards
@@ -170,12 +171,12 @@ FRANCE = re.compile(
 )
 
 
-def french_board(postings):
+def french_board(postings) -> bool:
     """A homonymous foreign company's board (no offer in France) proves nothing about a French offer."""
     return any(FRANCE.search(p.get("location") or "") for p in postings)
 
 
-def postings_of(board, company, lister=None):
+def postings_of(board, company, lister=None) -> list[dict[str, Any]]:
     if lister:
         return lister(board)
     from fitly.sources.collector_registry import collect_from_config
@@ -186,7 +187,7 @@ def postings_of(board, company, lister=None):
 
 
 # --- liveness of a direct employer page ---------------------------------------------------------------
-def page_closed(url, timeout=12):
+def page_closed(url, timeout=12) -> bool | None:
     """True when the employer page answers 404/410 or says the offer is no longer available. None if unknown."""
     try:
         req = Request(
@@ -201,7 +202,7 @@ def page_closed(url, timeout=12):
             final = r.geturl()
     except HTTPError as e:
         return True if e.code in (404, 410) else None
-    except Exception:
+    except Exception:  # deliberate: any other network failure (DNS, TLS, timeout, odd URL) means unknown
         return None
     body = re.sub(r"<script.*?</script>|<style.*?</style>", " ", text, flags=re.S | re.I)
     body = re.sub(r"<[^>]+>", " ", body)
@@ -224,7 +225,9 @@ def _fetch_all(urls, fetch=None, workers=8):
         return dict(zip(urls, pool.map(fetch, urls), strict=False))
 
 
-def check(db_path=None, limit=400, min_score=55, prober=probe, lister=None, fetch=None, verbose=False, relay_limit=40):
+def check(
+    db_path=None, limit=400, min_score=55, prober=probe, lister=None, fetch=None, verbose=False, relay_limit=40
+) -> dict[str, int]:
     """Check the open offers (not yet decided or GO): every direct employer page (in parallel), and the
     `relay_limit` best offers relayed by job boards (employer-board lookup). Returns counters."""
     db_path = paths.db_path(db_path)
@@ -255,7 +258,7 @@ def check(db_path=None, limit=400, min_score=55, prober=probe, lister=None, fetc
         "no_board": 0,
         "unknown": 0,
     }
-    postings_cache = {}
+    postings_cache: dict[tuple[str, str], list[dict[str, Any]]] = {}
     pages = _fetch_all(
         [r.get("direct_url") or r["url"] for r in rows if r.get("direct_url") or not is_relay(r["url"], r["company"])],
         fetch,
@@ -278,7 +281,7 @@ def check(db_path=None, limit=400, min_score=55, prober=probe, lister=None, fetc
                         if k not in postings_cache:
                             try:
                                 postings_cache[k] = postings_of(b, job["company"], lister)
-                            except Exception:
+                            except Exception:  # deliberate: an unreadable employer board counts as empty
                                 postings_cache[k] = []
                         if not french_board(postings_cache[k]):
                             continue
@@ -314,7 +317,7 @@ def check(db_path=None, limit=400, min_score=55, prober=probe, lister=None, fetc
     return stats
 
 
-def verify_before_opening(job_ids, db_path=None, fetch=None):
+def verify_before_opening(job_ids, db_path=None, fetch=None) -> list[int]:
     """Last check right before opening tabs: returns the ids whose employer page is gone (marked closed).
     Pages of job boards are not fetched (the extension reports them if they say 'expired')."""
     db_path = paths.db_path(db_path)
@@ -334,7 +337,7 @@ def verify_before_opening(job_ids, db_path=None, fetch=None):
     return closed
 
 
-def mark_closed(job_id, db_path=None):
+def mark_closed(job_id, db_path=None) -> None:
     """The pre-fill extension saw an 'offer no longer available' page."""
     db_path = paths.db_path(db_path)
     con = connect(db_path)

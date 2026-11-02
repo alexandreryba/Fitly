@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+- **Type checking.** mypy runs in CI (lint job, Python 3.13) on `src/fitly`: every function body is checked
+  and public functions declare their return type (enforced by Ruff's `ANN201`).
+- **Interface split by tab.** `ui/app.py` now only lays out the page; each tab lives in `ui/tabs/`, the
+  sidebar in `ui/sidebar.py`, shared helpers in `ui/shared.py` and the pure offer helpers in
+  `ui/offer_rows.py` (imported directly by the tests).
+- **Narrower error handling.** `except Exception` is kept only where any failure must be contained (network
+  sources, browser automation, hand-edited workbooks, the local server), each with its reason; elsewhere the
+  expected errors are named (database, file system, Playwright).
+
 ## 1.1.0
 
 - **The extension server answers the Fitly extension only.** Its ID is pinned by a public key in

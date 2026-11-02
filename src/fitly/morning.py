@@ -12,6 +12,7 @@ import argparse
 import json
 import sys
 from datetime import datetime
+from typing import Any
 
 from fitly import config, paths
 from fitly.scoring.novelty import classify
@@ -25,7 +26,7 @@ NO_SOURCE_ANSWERED = 3
 RELEVANT = 55
 
 
-def merge_previous(processed, previous):
+def merge_previous(processed, previous) -> list[dict[str, Any]]:
     """Current batch plus previously seen offers absent today, so a failed or partial
     collection never makes known offers look 'new' on the next run."""
 
@@ -54,7 +55,7 @@ def _manual_offers(stats):
     entry = {"type": "manual", "name": manual_offers.FILE.name, "target": None, "collected": 0}
     try:
         jobs, problems = manual_offers.read()
-    except Exception as exc:
+    except Exception as exc:  # deliberate: a hand-edited workbook fails in many ways; reported as this source's error
         stats.append({**entry, "status": "error", "error": str(exc)[:200]})
         return []
     status = ("ok" if jobs else "empty") if manual_offers.FILE.exists() else "disabled"
@@ -75,7 +76,7 @@ def _save_source_status(stats, processed, mail_jobs, mail_errors, db):
             email_enabled=bool(email_alerts.load_config().get("enabled")) or bool(mail_jobs),
         )
         source_status.save(status, db)
-    except Exception as exc:
+    except Exception as exc:  # deliberate: runs before the offers are stored and must never cost the collection
         print(f"Source status not saved: {exc}")
 
 
@@ -106,18 +107,18 @@ def _after_store(db):
         from fitly.sources import employer_match
 
         print(f"\nEmployer-site check: {employer_match.check(db_path=db)}")
-    except Exception as exc:
+    except Exception as exc:  # deliberate: network check of many employer sites, enrichment only
         print(f"\nEmployer-site check skipped: {exc}")
     try:  # Excel view of the offers
         from fitly.review import export_offers
 
         xlsx, n = export_offers.write(db_path=db)
         print(f"Excel export: {n} offers -> {xlsx}")
-    except Exception as exc:
+    except Exception as exc:  # deliberate: enrichment only (openpyxl also rejects some characters found in offers)
         print(f"Excel export skipped: {exc}")
 
 
-def parse_args(argv=None):
+def parse_args(argv=None) -> argparse.Namespace:
     # In a sandbox (FITLY_DB), the run summary and the history live next to the copy.
     work = paths.work_dir()
     p = argparse.ArgumentParser(prog="fitly morning", description=__doc__)
@@ -128,12 +129,12 @@ def parse_args(argv=None):
     return p.parse_args(argv)
 
 
-def main(argv=None):
+def main(argv=None) -> int:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(errors="replace")  # emoji titles on cp1252 pipes
     a = parse_args(argv)
     sources = json.loads(paths.project_path(a.config).read_text(encoding="utf-8")) if a.config else None
-    stats = []
+    stats: list[dict[str, Any]] = []
     _step("Collecting offers from the configured sources (a few minutes)...")
     raw, errors = collect_from_config(sources or config.load("ats_sources.json"), stats=stats)
     mail_jobs, mail_errors = email_alerts.collect()
