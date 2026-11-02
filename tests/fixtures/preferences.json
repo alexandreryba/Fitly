@@ -1,0 +1,55 @@
+{
+  "location": {
+    "primary": "Paris",
+    "remote_ok": true,
+    "idf_ok": true
+  },
+  "contracts": {
+    "cdi_priority": 1,
+    "freelance_priority": 2
+  },
+  "salary": {
+    "minimum": null,
+    "target": null
+  },
+  "roles": {
+    "priority_0": [
+      "Junior Data Architect",
+      "Data Cloud Architect",
+      "Cloud Data Architect",
+      "Data Solution Architect"
+    ],
+    "priority_1": [
+      "Data Engineer",
+      "AI Engineer",
+      "Machine Learning Engineer",
+      "GenAI Engineer",
+      "Applied AI Engineer",
+      "AI Data Engineer"
+    ],
+    "priority_2": [
+      "Analytics Engineer"
+    ],
+    "priority_3": [
+      "Data Architect",
+      "Data Scientist"
+    ],
+    "priority_4": [
+      "Data Analyst"
+    ],
+    "priority_5": [
+      "Enterprise Data Architect"
+    ],
+    "priority_6": [
+      "Product Owner Data",
+      "Product Manager Data"
+    ]
+  },
+  "hands_on": true,
+  "sectors": [
+    "all"
+  ],
+  "avoid_companies": [],
+  "excluded_companies": [],
+  "_comment": "Frozen fictional search profile for the scoring regression tests, covering the role families the scorer knows. Kept apart from the example in config/ so editing the example never moves these scores."
+}

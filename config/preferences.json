@@ -1,0 +1,36 @@
+{
+  "location": {
+    "primary": "Paris",
+    "remote_ok": true,
+    "idf_ok": true
+  },
+  "contracts": {
+    "cdi_priority": 1,
+    "freelance_priority": 2
+  },
+  "salary": {
+    "minimum": null,
+    "target": null
+  },
+  "roles": {
+    "priority_0": [
+      "Data Engineer",
+      "Analytics Engineer"
+    ],
+    "priority_1": [
+      "Machine Learning Engineer",
+      "Data Scientist"
+    ],
+    "priority_2": [
+      "Data Analyst"
+    ]
+  },
+  "hands_on": true,
+  "sectors": [
+    "all"
+  ],
+  "avoid_companies": [],
+  "excluded_companies": [],
+  "_excluded_companies_note": "Entreprises où ne pas postuler. Chaque entité est listée séparément (« Globex » seul n'écarte pas « Globex Consulting »). Modifiable dans l'interface, onglet Mes infos.",
+  "_comment": "Exemple fictif : copie ce fichier dans config/local/ (ou modifie-le depuis l'interface) pour l'adapter à ta recherche. Rôles par priorité décroissante (priority_0 d'abord) ; salary.minimum (brut annuel) pénalise les offres affichées en dessous. config/local/ n'est jamais versionné."
+}

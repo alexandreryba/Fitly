@@ -1,0 +1,13 @@
+{
+  "enabled": false,
+  "host": "imap.gmail.com",
+  "port": 993,
+  "user": "",
+  "password_env": "FITLY_IMAP_PASSWORD",
+  "folder": "INBOX",
+  "since_days": 3,
+  "senders": [
+    "jobalerts-noreply@linkedin.com",
+    "jobs-noreply@linkedin.com"
+  ]
+}

@@ -1,0 +1,9 @@
+# Local-only: the app holds personal application data, never expose it on the network.
+[server]
+address = "localhost"
+port = 8501
+headless = false
+
+[browser]
+gatherUsageStats = false
+serverAddress = "localhost"

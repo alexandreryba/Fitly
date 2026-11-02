@@ -1,0 +1,17 @@
+{
+  "name": "Jane Doe",
+  "experience": "Data engineer",
+  "skills": [
+    "Python",
+    "SQL",
+    "dbt",
+    "Airflow",
+    "Spark",
+    "Docker",
+    "Cloud",
+    "Data pipelines",
+    "Machine learning"
+  ],
+  "headline": "Data engineer",
+  "_comment": "Fictional example used by the scoring and the AI drafts. Put your own profile in config/local/profile.json (never versioned)."
+}

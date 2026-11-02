@@ -1,0 +1,30 @@
+{
+  "name": "Test Candidate",
+  "experience": "Data engineer, 6 years",
+  "skills": [
+    "Python",
+    "SQL",
+    "GCP",
+    "BigQuery",
+    "Data pipelines",
+    "Data Architecture",
+    "AI",
+    "GenAI",
+    "dbt",
+    "Airflow",
+    "PySpark",
+    "Spark",
+    "Docker",
+    "FastAPI",
+    "TypeScript",
+    "LangChain",
+    "LangGraph",
+    "LLM",
+    "RAG",
+    "Embeddings",
+    "Data Platform",
+    "Cloud"
+  ],
+  "headline": "Data engineer, 6 years",
+  "_comment": "Frozen fictional profile for the scoring regression tests (see preferences.json)."
+}
